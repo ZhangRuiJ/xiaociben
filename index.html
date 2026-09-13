@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="小词本" />
+    <title>小词本 · 美国小学三年级</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <img class="logo" src="icon.svg" alt="" />
+          <div>
+            <h1>小词本</h1>
+            <p>美国小学三年级 · 可搜索书库</p>
+          </div>
+        </div>
+        <button class="ghost" data-go="help" type="button">怎么用</button>
+      </header>
+
+      <main>
+        <section class="screen active" data-view="home">
+          <div class="hero">
+            <h2>今天想先练哪一样？</h2>
+            <p>故事和书按美国小学三年级来写。听故事、看书时可以直接搜书名或主题。</p>
+            <div class="stats">
+              <div class="stat"><b id="stat-known">0</b><span>比较熟的词</span></div>
+              <div class="stat"><b id="stat-wrong">0</b><span>还要再练</span></div>
+              <div class="stat"><b id="stat-streak">0</b><span>连续学习天数</span></div>
+            </div>
+          </div>
+          <p class="recommend" id="home-recommend">现在建议从入门开始。</p>
+          <div class="grid">
+            <button class="tile" data-go="modules" type="button">
+              <strong>练单词</strong>
+              <span>卡片、选择，按难度往上走</span>
+            </button>
+            <button class="tile" data-go="stories" type="button">
+              <strong>听故事</strong>
+              <span>搜书名或主题，先听再答题</span>
+            </button>
+            <button class="tile" data-go="reads" type="button">
+              <strong>看书</strong>
+              <span>搜想看的书，点句子就能听</span>
+            </button>
+            <button class="tile" data-go="dicts" type="button">
+              <strong>听写</strong>
+              <span>从单词到句子，自己选题</span>
+            </button>
+            <button class="tile" data-go="book" type="button">
+              <strong>单词本</strong>
+              <span>看词、听发音、自己加词</span>
+            </button>
+            <button class="tile" data-go="progress" type="button">
+              <strong>我的进步</strong>
+              <span>单词、故事和书都会记下来</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="screen" data-view="modules">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>选一个单元</strong>
+            <span></span>
+          </div>
+          <div class="module-list" id="module-list"></div>
+        </section>
+
+        <section class="screen" data-view="modes">
+          <div class="play-head">
+            <button class="ghost" data-go="modules" type="button">返回</button>
+            <strong id="mode-title">练习方式</strong>
+            <span></span>
+          </div>
+          <p id="mode-count" class="hint"></p>
+          <div class="modes">
+            <button class="mode-btn" data-start="cards" type="button">
+              <b>翻卡片</b>
+              <span>先看英文，点一下看中文和例句</span>
+            </button>
+            <button class="mode-btn" data-start="quiz" type="button">
+              <b>选择题</b>
+              <span>中英互译，做错的会记进错词本</span>
+            </button>
+            <button class="mode-btn" data-start="spell" type="button">
+              <b>拼写听写</b>
+              <span>听到单词，再把它写出来</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="screen" data-view="play">
+          <div class="play-head">
+            <button class="ghost" data-go="modes" type="button">退出</button>
+            <strong id="play-title">练习</strong>
+            <span id="play-progress-text">1 / 10</span>
+          </div>
+          <div class="progress-track"><div class="progress-bar" id="play-bar"></div></div>
+
+          <div id="card-panel">
+            <div class="flash-wrap">
+              <div class="flash" id="flash">
+                <div class="face">
+                  <div class="word-en" id="card-en"></div>
+                  <div class="ipa" id="card-ipa"></div>
+                  <small>点卡片看中文</small>
+                </div>
+                <div class="face back">
+                  <div class="word-zh" id="card-zh"></div>
+                  <p class="example" id="card-example"></p>
+                  <p class="example" id="card-example-zh"></p>
+                </div>
+              </div>
+            </div>
+            <div class="actions card-actions">
+              <button class="ghost" id="card-listen" type="button">听发音</button>
+              <button class="sun" id="know-no" type="button">再练练</button>
+              <button class="primary" id="know-yes" type="button">认识</button>
+            </div>
+          </div>
+
+          <div id="quiz-panel" hidden>
+            <div class="quiz-card">
+              <p class="prompt" id="quiz-prompt"></p>
+              <p class="hint" id="quiz-hint" style="margin-top: 0; text-align: center"></p>
+              <button class="ghost" id="quiz-listen" type="button">听发音</button>
+              <div class="options" id="quiz-options"></div>
+              <p class="feedback" id="quiz-feedback"></p>
+            </div>
+          </div>
+
+          <div id="spell-panel" hidden>
+            <div class="quiz-card">
+              <p class="prompt" id="spell-prompt"></p>
+              <p class="hint" style="margin-top: 0; text-align: center">先听，再写出英文</p>
+              <input
+                class="spell-input"
+                id="spell-input"
+                type="text"
+                autocapitalize="none"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                placeholder="在这里拼写"
+              />
+              <p class="feedback" id="spell-feedback"></p>
+              <div class="actions" style="margin-top: 16px">
+                <button class="ghost" id="spell-listen" type="button">再听一遍</button>
+                <button class="primary" id="spell-check" type="button">检查</button>
+                <button class="sun" id="spell-next" type="button" hidden>下一题</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-view="result">
+          <div class="result-card">
+            <p class="result-score" id="result-score">0 / 10</p>
+            <p id="result-message" class="hint" style="text-align: center"></p>
+            <ul class="wrong-list" id="result-wrong"></ul>
+            <div class="actions" style="margin-top: 18px">
+              <button class="ghost" data-go="home" type="button">回首页</button>
+              <button class="primary" id="retry-same" type="button">再练一轮</button>
+              <button class="sun" id="retry-wrong" type="button">只练错词</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-view="book">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>单词本</strong>
+            <button class="sun" data-go="add" type="button">加单词</button>
+          </div>
+          <div class="chips">
+            <button class="chip active" data-book-filter="all" type="button">全部</button>
+            <button class="chip" data-book-filter="wrong" type="button">错词</button>
+            <button class="chip" data-book-filter="mine" type="button">我加的</button>
+          </div>
+          <div class="word-list" id="book-list"></div>
+        </section>
+
+        <section class="screen" data-view="add">
+          <div class="play-head">
+            <button class="ghost" data-go="book" type="button">返回</button>
+            <strong>加一个新词</strong>
+            <span></span>
+          </div>
+          <div class="form-card">
+            <label for="new-en">英文</label>
+            <input class="spell-input" id="new-en" type="text" autocapitalize="none" spellcheck="false" />
+            <label for="new-zh">中文</label>
+            <input class="spell-input" id="new-zh" type="text" />
+            <label for="new-example">例句（可以先空着）</label>
+            <input class="spell-input" id="new-example" type="text" />
+            <p class="feedback" id="add-feedback"></p>
+            <button class="primary" id="add-word" type="button" style="width: 100%; margin-top: 12px">放进单词本</button>
+          </div>
+        </section>
+
+        <section class="screen" data-view="progress">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>我的进步</strong>
+            <span></span>
+          </div>
+          <div class="hero">
+            <div class="stats">
+              <div class="stat"><b id="progress-practiced">0</b><span>练过的词</span></div>
+              <div class="stat"><b id="progress-known">0</b><span>比较熟</span></div>
+              <div class="stat"><b id="progress-streak-big">0 天</b><span>连续学习</span></div>
+            </div>
+            <p class="section-title">还要多看看的词</p>
+            <ul class="wrong-list" id="weak-list"></ul>
+            <p class="section-title">读过、听过的</p>
+            <ul class="wrong-list" id="library-done"></ul>
+            <p class="section-title">换设备时带走记录</p>
+            <p class="hint" style="margin-top: 0">电脑和 iPad 不在一起时，学习记录不会自动跟着走。先在有记录的设备上保存，再到新地址里找回。</p>
+            <div class="backup-actions">
+              <button class="primary" id="backup-save" type="button">保存学习记录</button>
+              <button class="sun" id="backup-copy" type="button">复制记录</button>
+              <button class="ghost" id="backup-load" type="button">从文件找回</button>
+            </div>
+            <input id="backup-file" type="file" accept="application/json,.json,text/plain" hidden />
+            <label class="backup-label" for="backup-paste">也可以把记录粘贴到这里</label>
+            <textarea class="backup-paste" id="backup-paste" rows="4" placeholder="把刚才复制的学习记录贴在这里"></textarea>
+            <button class="ghost" id="backup-import-text" type="button" style="width: 100%; margin-top: 10px">用粘贴的内容找回</button>
+            <p class="feedback" id="backup-feedback"></p>
+          </div>
+        </section>
+
+        <section class="screen" data-view="help">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>怎么用</strong>
+            <span></span>
+          </div>
+          <div class="hero">
+            <p>这个工具像一本会出声、也会变难的英语练习本。</p>
+            <p>1. 现在的故事、书和听写，都按美国小学三年级的英语来写。</p>
+            <p>2. 听故事、看书时，可以搜书名或主题，比如「恐龙」「魔法」「侦探」。</p>
+            <p>3. 有版权的书（比如哈利·波特）不能放进来。搜的时候，我会给你找同主题的原创故事。</p>
+            <p>4. 难度还是三档：三年级浅、三年级、三年级深。</p>
+            <p>5. 外研版课本单词还留着，想复习课本可以在「练单词」里选 Module。</p>
+            <p>6. 电脑不在身边时，用网上的地址打开：<a href="https://zhangruiji.github.io/xiaociben/">https://zhangruiji.github.io/xiaociben/</a></p>
+            <p>7. 第一次换地址时，先到「我的进步」里保存学习记录，再到新地址里找回。不然旧记录还留在原来的网址里。</p>
+            <p>8. 在 iPad 的 Safari 打开网上地址后，点分享按钮，选「添加到主屏幕」。以后像打开 App 一样用，不用开电脑。</p>
+          </div>
+        </section>
+
+        <section class="screen" data-view="library">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong id="library-title">请选择</strong>
+            <span></span>
+          </div>
+          <p class="hint" id="library-hint"></p>
+          <form class="search-bar" id="library-search-form">
+            <input
+              id="library-search"
+              type="search"
+              enterkeyhint="search"
+              autocapitalize="none"
+              autocomplete="off"
+              placeholder="搜书名或主题，比如 恐龙、魔法、学校"
+            />
+            <button class="primary" type="submit">搜索</button>
+          </form>
+          <p class="hint" id="library-search-status"></p>
+          <div class="chips" id="library-chips"></div>
+          <div class="module-list" id="library-list"></div>
+        </section>
+
+        <section class="screen" data-view="story">
+          <div class="play-head">
+            <button class="ghost" id="story-back" type="button">返回</button>
+            <strong id="story-title">听故事</strong>
+            <span id="story-level"></span>
+          </div>
+          <div class="reader-card">
+            <div class="chips">
+              <button class="chip" id="story-toggle-text" type="button">看原文</button>
+              <button class="chip" id="story-toggle-zh" type="button">看中文</button>
+            </div>
+            <div class="sentence-list" id="story-lines"></div>
+            <p class="hint" id="story-listen-hint">可以先只听，听完再看原文。</p>
+            <div class="actions" style="margin-top: 16px">
+              <button class="ghost" id="story-stop" type="button">停一下</button>
+              <button class="primary" id="story-play" type="button">开始听</button>
+              <button class="sun" id="story-quiz" type="button">听完了，去做题</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-view="reader">
+          <div class="play-head">
+            <button class="ghost" id="reader-back" type="button">返回</button>
+            <strong id="reader-title">看书</strong>
+            <span id="reader-page">1 / 3</span>
+          </div>
+          <div class="progress-track"><div class="progress-bar" id="reader-bar"></div></div>
+          <div class="reader-card">
+            <p class="book-kicker" id="reader-kicker"></p>
+            <div class="chips">
+              <button class="chip" id="reader-toggle-zh" type="button">看中文</button>
+            </div>
+            <div class="sentence-list" id="reader-lines"></div>
+            <div class="actions" style="margin-top: 16px">
+              <button class="ghost" id="reader-prev" type="button">上一页</button>
+              <button class="primary" id="reader-next" type="button">下一页</button>
+              <button class="sun" id="reader-quiz" type="button" hidden>读完了，去做题</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-view="dictation">
+          <div class="play-head">
+            <button class="ghost" data-go="dicts" type="button">退出</button>
+            <strong id="dict-title">听写</strong>
+            <span id="dict-progress-text">1 / 5</span>
+          </div>
+          <div class="progress-track"><div class="progress-bar" id="dict-bar"></div></div>
+          <div class="quiz-card">
+            <p class="prompt" id="dict-kind">单词听写</p>
+            <p class="hint" id="dict-hint" style="margin-top: 0; text-align: center">先听，再写出英文</p>
+            <input
+              class="spell-input"
+              id="dict-input"
+              type="text"
+              autocapitalize="none"
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="在这里写"
+            />
+            <p class="feedback" id="dict-feedback"></p>
+            <div class="actions" style="margin-top: 16px">
+              <button class="ghost" id="dict-listen" type="button">再听一遍</button>
+              <button class="ghost" id="dict-show-hint" type="button">看中文提示</button>
+              <button class="primary" id="dict-check" type="button">检查</button>
+              <button class="sun" id="dict-next" type="button" hidden>下一题</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-view="comprehension">
+          <div class="play-head">
+            <button class="ghost" id="comp-back" type="button">返回</button>
+            <strong>听懂了吗？</strong>
+            <span id="comp-progress">1 / 2</span>
+          </div>
+          <div class="quiz-card">
+            <p class="prompt" id="comp-prompt"></p>
+            <div class="options" id="comp-options"></div>
+            <p class="feedback" id="comp-feedback"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="words.js"></script>
+    <script src="library.js"></script>
+    <script src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    </script>
+  </body>
+</html>

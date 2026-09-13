@@ -1,0 +1,16 @@
+{
+  "name": "小词本",
+  "short_name": "小词本",
+  "description": "美国小学三年级英语练习本",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#E8F3EE",
+  "theme_color": "#2A7F6F",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
