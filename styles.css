@@ -270,8 +270,15 @@ input:focus-visible {
   line-height: 1.45;
 }
 
-.tile.wide {
+.tile.wide,
+.continue-tile {
   grid-column: 1 / -1;
+}
+
+.continue-tile {
+  margin-top: 14px;
+  background: var(--sun-soft);
+  border-color: #f0c36a;
 }
 
 .section-title {
@@ -574,6 +581,111 @@ input:focus-visible {
   background: #f6fbf8;
   box-shadow: inset 0 0 0 2px var(--line);
   resize: vertical;
+}
+
+.novel-line {
+  padding: 14px 16px;
+  background: #f6fbf8;
+  border-radius: 18px;
+  border: 2px solid #cfe4db;
+}
+
+.novel-line-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.line-listen {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.novel-text {
+  margin: 0;
+  flex: 1;
+  line-height: 2.05;
+  font-family: Georgia, "Iowan Old Style", serif;
+  font-size: 1.2rem;
+}
+
+.tap-word {
+  display: inline;
+  padding: 0 1px;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+}
+
+.tap-word.is-saved {
+  background: #e7f4ee;
+}
+
+.tap-word.is-open {
+  background: var(--sun-soft);
+}
+
+.novel-line small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.word-sheet {
+  position: sticky;
+  bottom: 8px;
+  z-index: 5;
+  width: min(920px, 100%);
+  margin: 12px auto 0;
+  padding: 16px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 2px solid #cfe4db;
+}
+
+.word-sheet-close {
+  float: right;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: #fff3d4;
+}
+
+.word-sheet-en {
+  margin: 0 0 4px;
+  font-size: 1.8rem;
+  font-family: Georgia, "Iowan Old Style", serif;
+}
+
+.word-sheet-ipa,
+.word-sheet-zh,
+.word-sheet-sentence {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.word-sheet-zh {
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.word-sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  clear: both;
+}
+
+.word-sheet-actions .primary {
+  grid-column: 1 / -1;
 }
 
 .reader-card {

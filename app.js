@@ -22,6 +22,9 @@ const state = {
   utterance: null,
   comprehensionIndex: 0,
   comprehensionAnswers: [],
+  novel: null,
+  chapterIndex: 0,
+  wordCard: null,
 };
 
 function emptyProgress() {
@@ -35,6 +38,7 @@ function emptyProgress() {
     completedStories: {},
     completedBooks: {},
     completedDictation: {},
+    reading: {},
   };
 }
 
@@ -170,6 +174,7 @@ function wordsForModule(moduleId) {
     return allWords().filter((word) => (progress.wrong[word.id] || 0) > (progress.correct[word.id] || 0));
   }
   if (moduleId === "mine") return loadProgress().custom || [];
+  if (moduleId === "reading") return (loadProgress().custom || []).filter((word) => word.source === "reading");
   if (moduleId === "level-1") return GRADE3_WORDS.filter((word) => word.level === 1);
   if (moduleId === "level-2") return GRADE3_WORDS.filter((word) => word.level === 2);
   if (moduleId === "level-3") return GRADE3_WORDS.filter((word) => word.level === 3);
@@ -253,7 +258,8 @@ function $(id) {
 }
 
 function show(view) {
-  if (view !== "story" && view !== "reader") stopSpeak();
+  if (view !== "story" && view !== "reader" && view !== "novel-reader") stopSpeak();
+  if (view !== "novel-reader") hideWordSheet();
   state.view = view;
   document.querySelectorAll(".screen").forEach((screen) => {
     screen.classList.toggle("active", screen.dataset.view === view);
@@ -272,6 +278,15 @@ function moduleLabel(moduleId) {
   return found ? `${found.subtitle} ${found.title}` : "单词";
 }
 
+function latestReading() {
+  const progress = loadProgress();
+  const entries = Object.entries(progress.reading || {})
+    .map(([id, record]) => ({ id, record, novel: findNovel(id) }))
+    .filter((item) => item.novel && item.record);
+  entries.sort((a, b) => String(b.record.updatedAt || "").localeCompare(String(a.record.updatedAt || "")));
+  return entries[0] || null;
+}
+
 function renderHome() {
   const progress = loadProgress();
   const known = allWords().filter((word) => (progress.correct[word.id] || 0) >= 2).length;
@@ -281,6 +296,15 @@ function renderHome() {
   $("stat-wrong").textContent = String(weak);
   $("stat-streak").textContent = String(progress.streak || 0);
   $("home-recommend").textContent = `现在建议练习「${levelName(rec)}」。你也可以自己选更难或更容易的。`;
+  const latest = latestReading();
+  $("home-continue").hidden = !latest;
+  if (latest) {
+    const place = novelPageLabel(latest.novel, latest.record.chapterIndex || 0, latest.record.pageIndex || 0);
+    $("home-continue-title").textContent = latest.record.finished
+      ? `再读一遍：《${latest.novel.titleZh}》`
+      : `接着读：《${latest.novel.titleZh}》`;
+    $("home-continue-meta").textContent = latest.record.finished ? "已经读完，可以从头或从目录再看" : place;
+  }
   show("home");
 }
 
@@ -679,13 +703,18 @@ function renderDictation() {
   }, 200);
 }
 
+function currentQuestions() {
+  if (state.libraryKind === "novel") return currentChapter()?.questions || [];
+  return state.libraryItem?.questions || [];
+}
+
 function startComprehension() {
   stopSpeak();
   state.comprehensionIndex = 0;
   state.comprehensionAnswers = [];
   state.answers = [];
   state.locked = false;
-  if (!state.libraryItem.questions?.length) {
+  if (!currentQuestions().length) {
     state.answers = [{ ok: true, label: "已读完这一段" }];
     renderResult();
     return;
@@ -694,8 +723,8 @@ function startComprehension() {
 }
 
 function renderComprehension() {
-  const question = state.libraryItem.questions[state.comprehensionIndex];
-  const total = state.libraryItem.questions.length;
+  const question = currentQuestions()[state.comprehensionIndex];
+  const total = currentQuestions().length;
   $("comp-progress").textContent = `${state.comprehensionIndex + 1} / ${total}`;
   $("comp-prompt").textContent = question.q;
   $("comp-feedback").textContent = "";
@@ -729,6 +758,17 @@ function renderResult() {
       : "<li>这一轮没有错词。</li>";
     $("retry-wrong").hidden = missed.length === 0;
     $("retry-same").textContent = "再练一轮";
+  } else if (state.libraryKind === "novel") {
+    const rec = recommendedLevel(loadProgress());
+    $("result-message").textContent = passed
+      ? `这一章看得很清楚。可以下一章，也可以试试「${levelName(rec)}」的单词。`
+      : "再读一遍这一章，然后重做这两道题。";
+    const missed = state.answers.filter((item) => !item.ok);
+    $("result-wrong").innerHTML = missed.length
+      ? missed.map((item) => `<li>${item.label || "再看一看这一题"}</li>`).join("")
+      : "<li>这一章的题都对了。</li>";
+    $("retry-wrong").hidden = true;
+    $("retry-same").textContent = "回到这一章";
   } else {
     markLibraryDone(passed);
     const rec = recommendedLevel(loadProgress());
@@ -751,7 +791,7 @@ function renderBook(filter = "all") {
     ? list
         .map(
           (word) => `<button class="word-row" data-speak="${word.en}">
-            <span><strong>${word.en}</strong><br><small>${word.zh} · ${moduleLabel(word.module || "mine")} · ${levelName(wordLevel(word))}</small></span>
+            <span><strong>${word.en}</strong><br><small>${word.zh} · ${word.example ? word.example : `${moduleLabel(word.module || "mine")} · ${levelName(wordLevel(word))}`}</small></span>
             <span>听</span>
           </button>`,
         )
@@ -776,13 +816,247 @@ function renderProgress() {
   const storyCount = Object.keys(progress.completedStories || {}).length;
   const bookCount = Object.keys(progress.completedBooks || {}).length;
   const dictCount = Object.keys(progress.completedDictation || {}).length;
+  const readingLines = NOVELS.map((novel) => {
+    const record = (progress.reading || {})[novel.id];
+    if (!record) return `<li>《${novel.titleZh}》：还没开始</li>`;
+    if (record.finished) return `<li>《${novel.titleZh}》：已经读完</li>`;
+    return `<li>《${novel.titleZh}》：${novelPageLabel(novel, record.chapterIndex || 0, record.pageIndex || 0)}</li>`;
+  }).join("");
   $("library-done").innerHTML = `
     <li>当前建议难度：<b>${levelName(rec)}</b></li>
     <li>听过的故事：${storyCount} 个</li>
-    <li>看过的书：${bookCount} 本</li>
+    <li>看过的短篇：${bookCount} 本</li>
     <li>完成的听写：${dictCount} 组</li>
+    ${readingLines}
   `;
   show("progress");
+}
+
+function currentChapter() {
+  return state.novel?.chapters[state.chapterIndex] || null;
+}
+
+function readingRecord(novelId) {
+  return (loadProgress().reading || {})[novelId] || null;
+}
+
+function saveReadingPosition(extra = {}) {
+  if (!state.novel) return;
+  const progress = loadProgress();
+  progress.reading = progress.reading || {};
+  progress.reading[state.novel.id] = {
+    ...(progress.reading[state.novel.id] || {}),
+    chapterIndex: state.chapterIndex,
+    pageIndex: state.pageIndex,
+    updatedAt: new Date().toISOString(),
+    ...extra,
+  };
+  saveProgress(progress);
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function tokenizeLine(en) {
+  return en.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*|[^A-Za-z]+/g) || [en];
+}
+
+function savedWordKeys() {
+  return new Set(allWords().map((word) => word.en.toLowerCase()));
+}
+
+function lookupWord(raw) {
+  const key = raw.toLowerCase();
+  const fromBank = allWords().find((word) => word.en.toLowerCase() === key);
+  if (fromBank) return { en: fromBank.en, zh: fromBank.zh, ipa: fromBank.ipa || "" };
+  const gloss = GLOSSARY[key];
+  if (gloss) return { en: raw, zh: gloss.zh, ipa: gloss.ipa || "" };
+  const stem = key.replace(/'s$/, "").replace(/s$/, "");
+  if (stem !== key && GLOSSARY[stem]) return { en: raw, zh: GLOSSARY[stem].zh, ipa: GLOSSARY[stem].ipa || "" };
+  return { en: raw, zh: "先听发音。中文可以自己补在单词本里。", ipa: "" };
+}
+
+function hideWordSheet() {
+  if (!$("word-sheet")) return;
+  $("word-sheet").hidden = true;
+  state.wordCard = null;
+  document.querySelectorAll(".tap-word.is-open").forEach((node) => node.classList.remove("is-open"));
+}
+
+function openWordSheet(token, line) {
+  const info = lookupWord(token);
+  state.wordCard = { token, line, info };
+  $("word-sheet-en").textContent = token;
+  $("word-sheet-ipa").textContent = info.ipa || "";
+  $("word-sheet-ipa").hidden = !info.ipa;
+  $("word-sheet-zh").textContent = info.zh;
+  $("word-sheet-sentence").textContent = line.en;
+  $("word-sheet-feedback").textContent = "";
+  $("word-sheet").hidden = false;
+  document.querySelectorAll(".tap-word").forEach((node) => {
+    node.classList.toggle("is-open", node.dataset.tapToken === token);
+  });
+}
+
+function addReadingWord() {
+  if (!state.wordCard) return;
+  const { token, line, info } = state.wordCard;
+  const progress = loadProgress();
+  const exists = (progress.custom || []).some((word) => word.en.toLowerCase() === token.toLowerCase());
+  if (exists) {
+    $("word-sheet-feedback").textContent = "这个词已经在单词本里了。";
+    return;
+  }
+  progress.custom.push({
+    id: `read-${token.toLowerCase()}-${Date.now()}`,
+    module: "mine",
+    source: "reading",
+    level: 1,
+    en: token,
+    zh: info.zh,
+    ipa: info.ipa || "",
+    example: line.en,
+    exampleZh: line.zh || "",
+  });
+  saveProgress(progress);
+  renderNovelReader();
+  openWordSheet(token, line);
+  $("word-sheet-feedback").textContent = "已经加入单词本，并带上了这一整句。";
+}
+
+function renderNovels() {
+  hideWordSheet();
+  $("novel-list").innerHTML = NOVELS.map((novel) => {
+    const record = readingRecord(novel.id);
+    let status = "还没开始 · 点这里选书";
+    if (record?.finished) status = "已经读完 · 可以再读";
+    else if (record) status = `读到${novelPageLabel(novel, record.chapterIndex || 0, record.pageIndex || 0)}`;
+    return `<button class="module-card" data-open-novel="${novel.id}" type="button">
+      <span><strong>${novel.titleZh}</strong><br><small>${novel.title} · ${novel.kindZh}<br>${status}</small></span>
+      <span>›</span>
+    </button>`;
+  }).join("");
+  show("novels");
+}
+
+function openNovelMenu(id) {
+  state.novel = findNovel(id);
+  state.libraryKind = "novel";
+  if (!state.novel) return;
+  const record = readingRecord(id);
+  const chapter = state.novel.chapters[record?.chapterIndex || 0];
+  const canResume = Boolean(record) && !record.finished;
+  $("novel-chapter-title").textContent = state.novel.titleZh;
+  $("novel-chapter-hero").innerHTML = `
+    <h2>${escapeHtml(state.novel.title)}</h2>
+    <p>${escapeHtml(state.novel.summaryZh)}</p>
+    <p>${escapeHtml(state.novel.author)} · ${escapeHtml(state.novel.kindZh)} · ${state.novel.chapters.length} 章</p>
+    ${
+      record
+        ? `<p class="recommend">${record.finished ? "这本书你已经读完了。" : `上次读到：${novelPageLabel(state.novel, record.chapterIndex || 0, record.pageIndex || 0)}`}</p>`
+        : "<p>从第一章开始，读到哪里都会记住。</p>"
+    }
+    <div class="actions" style="margin-top:16px">
+      <button class="primary" data-resume-novel="${state.novel.id}" type="button">${canResume ? "接着读" : record?.finished ? "再读一遍" : "开始读"}</button>
+      <button class="ghost" data-go="novels" type="button">换一本</button>
+    </div>
+  `;
+  $("novel-chapter-list").innerHTML = state.novel.chapters
+    .map((item, index) => {
+      const here = record && record.chapterIndex === index && !record.finished;
+      return `<button class="module-card" data-open-chapter="${index}" type="button">
+        <span><strong>第 ${index + 1} 章 · ${item.titleZh}</strong><br><small>${item.title}${here ? " · 上次读到这里" : ""}</small></span>
+        <span>›</span>
+      </button>`;
+    })
+    .join("");
+  show("novel-chapters");
+}
+
+function openNovelAt(id, chapterIndex, pageIndex, restart) {
+  state.novel = findNovel(id);
+  state.libraryKind = "novel";
+  if (!state.novel) return;
+  const record = readingRecord(id);
+  if (restart) {
+    state.chapterIndex = 0;
+    state.pageIndex = 0;
+  } else {
+    state.chapterIndex = chapterIndex ?? record?.chapterIndex ?? 0;
+    state.pageIndex = pageIndex ?? record?.pageIndex ?? 0;
+  }
+  touchStreak();
+  saveReadingPosition(restart ? { finished: false } : {});
+  renderNovelReader();
+}
+
+function renderNovelReader() {
+  const novel = state.novel;
+  const chapter = currentChapter();
+  if (!novel || !chapter) return;
+  const page = chapter.pages[state.pageIndex];
+  const lastPage = state.pageIndex >= chapter.pages.length - 1;
+  const lastChapter = state.chapterIndex >= novel.chapters.length - 1;
+  const saved = savedWordKeys();
+  $("novel-reader-title").textContent = chapter.titleZh;
+  $("novel-kicker").textContent = `${novel.titleZh} · 第 ${state.chapterIndex + 1} 章 ${chapter.title}`;
+  $("novel-reader-page").textContent = `${state.pageIndex + 1} / ${chapter.pages.length}`;
+  $("novel-bar").style.width = `${((state.chapterIndex + (state.pageIndex + 1) / chapter.pages.length) / novel.chapters.length) * 100}%`;
+  $("novel-toggle-zh").classList.toggle("active", state.showZh);
+  $("novel-prev").disabled = state.chapterIndex === 0 && state.pageIndex === 0;
+  $("novel-next").hidden = lastPage && lastChapter;
+  $("novel-next").textContent = lastPage ? "下一章" : "下一页";
+  $("novel-quiz").hidden = !lastPage;
+  $("novel-lines").innerHTML = page
+    .map((line, lineIndex) => {
+      const words = tokenizeLine(line.en)
+        .map((part) => {
+          if (!/[A-Za-z]/.test(part)) return escapeHtml(part);
+          const savedClass = saved.has(part.toLowerCase()) ? " is-saved" : "";
+          return `<button class="tap-word${savedClass}" data-tap-line="${lineIndex}" data-tap-token="${escapeHtml(part)}" type="button">${escapeHtml(part)}</button>`;
+        })
+        .join("");
+      return `<div class="novel-line">
+        <div class="novel-line-top">
+          <button class="line-listen" data-novel-line="${lineIndex}" type="button">听</button>
+          <p class="novel-text">${words}</p>
+        </div>
+        ${state.showZh ? `<small>${escapeHtml(line.zh)}</small>` : ""}
+      </div>`;
+    })
+    .join("");
+  saveReadingPosition({ finished: lastPage && lastChapter });
+  show("novel-reader");
+}
+
+function stepNovelPage(delta) {
+  const chapter = currentChapter();
+  if (!chapter) return;
+  const nextPage = state.pageIndex + delta;
+  if (nextPage >= 0 && nextPage < chapter.pages.length) {
+    state.pageIndex = nextPage;
+    hideWordSheet();
+    renderNovelReader();
+    return;
+  }
+  if (delta > 0 && state.chapterIndex < state.novel.chapters.length - 1) {
+    state.chapterIndex += 1;
+    state.pageIndex = 0;
+    hideWordSheet();
+    renderNovelReader();
+    return;
+  }
+  if (delta < 0 && state.chapterIndex > 0) {
+    state.chapterIndex -= 1;
+    state.pageIndex = state.novel.chapters[state.chapterIndex].pages.length - 1;
+    hideWordSheet();
+    renderNovelReader();
+  }
 }
 
 function addCustomWord() {
@@ -843,6 +1117,7 @@ function bindEvents() {
       }
       if (view === "progress") renderProgress();
       if (view === "help") show("help");
+      if (view === "novels") renderNovels();
     }
 
     const start = event.target.closest("[data-start]");
@@ -862,6 +1137,38 @@ function bindEvents() {
 
     const openItem = event.target.closest("[data-open-item]");
     if (openItem) openLibraryItem(openItem.dataset.openItem);
+
+    const openNovel = event.target.closest("[data-open-novel]");
+    if (openNovel) {
+      openNovelMenu(openNovel.dataset.openNovel);
+      return;
+    }
+
+    const resumeNovel = event.target.closest("[data-resume-novel]");
+    if (resumeNovel) {
+      const record = readingRecord(resumeNovel.dataset.resumeNovel);
+      openNovelAt(resumeNovel.dataset.resumeNovel, undefined, undefined, Boolean(record?.finished) || !record);
+      return;
+    }
+
+    const openChapter = event.target.closest("[data-open-chapter]");
+    if (openChapter && state.novel) {
+      openNovelAt(state.novel.id, Number(openChapter.dataset.openChapter), 0);
+      return;
+    }
+
+    const tapWord = event.target.closest("[data-tap-token]");
+    if (tapWord && state.view === "novel-reader") {
+      const line = currentChapter().pages[state.pageIndex][Number(tapWord.dataset.tapLine)];
+      openWordSheet(tapWord.dataset.tapToken, line);
+      return;
+    }
+
+    const novelLine = event.target.closest("[data-novel-line]");
+    if (novelLine && state.view === "novel-reader") {
+      const line = currentChapter().pages[state.pageIndex][Number(novelLine.dataset.novelLine)];
+      speak(line.en);
+    }
 
     const speakBtn = event.target.closest("[data-speak]");
     if (speakBtn) speak(speakBtn.dataset.speak);
@@ -898,7 +1205,7 @@ function bindEvents() {
     const compOption = event.target.closest("[data-comp-option]");
     if (compOption && !state.locked && state.view === "comprehension") {
       state.locked = true;
-      const question = state.libraryItem.questions[state.comprehensionIndex];
+      const question = currentQuestions()[state.comprehensionIndex];
       const choice = Number(compOption.dataset.compOption);
       const ok = choice === question.answer;
       compOption.classList.add(ok ? "is-right" : "is-wrong");
@@ -909,7 +1216,7 @@ function bindEvents() {
       $("comp-feedback").textContent = ok ? "答对了！" : `正确答案：${question.options[question.answer]}`;
       state.answers.push({ ok, label: `${question.q} → ${question.options[question.answer]}` });
       setTimeout(() => {
-        if (state.comprehensionIndex >= state.libraryItem.questions.length - 1) {
+        if (state.comprehensionIndex >= currentQuestions().length - 1) {
           renderResult();
         } else {
           state.comprehensionIndex += 1;
@@ -999,6 +1306,7 @@ function bindEvents() {
   $("reader-quiz").addEventListener("click", startComprehension);
   $("comp-back").addEventListener("click", () => {
     if (state.libraryKind === "story") renderStory();
+    else if (state.libraryKind === "novel") renderNovelReader();
     else renderReader();
   });
 
@@ -1049,6 +1357,7 @@ function bindEvents() {
     if (state.libraryKind === "story") renderStory();
     if (state.libraryKind === "book") renderReader();
     if (state.libraryKind === "dictation") renderDictation();
+    if (state.libraryKind === "novel") renderNovelReader();
   });
   $("retry-wrong").addEventListener("click", () => {
     state.moduleId = "wrong";
@@ -1082,6 +1391,50 @@ function bindEvents() {
     state.libraryQuery = $("library-search").value;
     state.remoteItems = [];
     renderLibrary(state.libraryKind);
+  });
+
+  $("home-continue").addEventListener("click", () => {
+    const latest = latestReading();
+    if (!latest) {
+      renderNovels();
+      return;
+    }
+    openNovelAt(latest.id, undefined, undefined, Boolean(latest.record.finished));
+  });
+
+  $("novel-back").addEventListener("click", () => {
+    hideWordSheet();
+    saveReadingPosition();
+    openNovelMenu(state.novel.id);
+  });
+  $("novel-toggle-zh").addEventListener("click", () => {
+    state.showZh = !state.showZh;
+    renderNovelReader();
+  });
+  $("novel-toc").addEventListener("click", () => {
+    hideWordSheet();
+    saveReadingPosition();
+    openNovelMenu(state.novel.id);
+  });
+  $("novel-prev").addEventListener("click", () => stepNovelPage(-1));
+  $("novel-next").addEventListener("click", () => stepNovelPage(1));
+  $("novel-quiz").addEventListener("click", startComprehension);
+
+  $("word-sheet-close").addEventListener("click", hideWordSheet);
+  $("word-sheet-speak").addEventListener("click", () => {
+    if (state.wordCard) speak(state.wordCard.token);
+  });
+  $("word-sheet-speak-line").addEventListener("click", () => {
+    if (state.wordCard) speak(state.wordCard.line.en);
+  });
+  $("word-sheet-add").addEventListener("click", addReadingWord);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key.toLowerCase() !== "a") return;
+    if (event.target.matches("input, textarea")) return;
+    if ($("word-sheet").hidden) return;
+    event.preventDefault();
+    addReadingWord();
   });
 }
 

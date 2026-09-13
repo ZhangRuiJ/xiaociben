@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,11 @@
         <section class="screen active" data-view="home">
           <div class="hero">
             <h2>今天想先练哪一样？</h2>
-            <p>故事和书按美国小学三年级来写。听故事、看书时可以直接搜书名或主题。</p>
+            <p>故事和书按美国小学三年级来写。长篇阅读会记住你读到哪一页，下次接着看。</p>
+            <button class="tile wide continue-tile" id="home-continue" type="button" hidden>
+              <strong id="home-continue-title">接着读</strong>
+              <span id="home-continue-meta">打开长篇阅读</span>
+            </button>
             <div class="stats">
               <div class="stat"><b id="stat-known">0</b><span>比较熟的词</span></div>
               <div class="stat"><b id="stat-wrong">0</b><span>还要再练</span></div>
@@ -47,7 +51,11 @@
             </button>
             <button class="tile" data-go="reads" type="button">
               <strong>看书</strong>
-              <span>搜想看的书，点句子就能听</span>
+              <span>搜想看的短篇，点句子就能听</span>
+            </button>
+            <button class="tile" data-go="novels" type="button">
+              <strong>长篇阅读</strong>
+              <span>选书、点词翻译，从上次停下的地方接着读</span>
             </button>
             <button class="tile" data-go="dicts" type="button">
               <strong>听写</strong>
@@ -183,6 +191,7 @@
             <button class="chip active" data-book-filter="all" type="button">全部</button>
             <button class="chip" data-book-filter="wrong" type="button">错词</button>
             <button class="chip" data-book-filter="mine" type="button">我加的</button>
+            <button class="chip" data-book-filter="reading" type="button">读书加的</button>
           </div>
           <div class="word-list" id="book-list"></div>
         </section>
@@ -252,6 +261,51 @@
             <p>6. 电脑不在身边时，用网上的地址打开：<a href="https://zhangruij.github.io/xiaociben/">https://zhangruij.github.io/xiaociben/</a></p>
             <p>7. 第一次换地址时，先到「我的进步」里保存学习记录，再到新地址里找回。不然旧记录还留在原来的网址里。</p>
             <p>8. 在 iPad 的 Safari 打开网上地址后，点分享按钮，选「添加到主屏幕」。以后像打开 App 一样用，不用开电脑。</p>
+            <p>9. 「长篇阅读」里有原创魔法学校，还有《绿野仙踪》《爱丽丝漫游奇境》的三年级改写。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
+            <p>10. 长篇会记住你读到第几章第几页。下次打开，点「接着读」就行。电脑上打开单词卡片后，按 A 也能加入单词本。</p>
+          </div>
+        </section>
+
+        <section class="screen" data-view="novels">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>长篇阅读</strong>
+            <span></span>
+          </div>
+          <p class="hint">先选一本书。软件会记住你读到哪里，下次从同一页接着看。</p>
+          <div class="module-list" id="novel-list"></div>
+        </section>
+
+        <section class="screen" data-view="novel-chapters">
+          <div class="play-head">
+            <button class="ghost" data-go="novels" type="button">返回</button>
+            <strong id="novel-chapter-title">目录</strong>
+            <span></span>
+          </div>
+          <div class="hero" id="novel-chapter-hero"></div>
+          <div class="module-list" id="novel-chapter-list"></div>
+        </section>
+
+        <section class="screen" data-view="novel-reader">
+          <div class="play-head">
+            <button class="ghost" id="novel-back" type="button">返回</button>
+            <strong id="novel-reader-title">长篇</strong>
+            <span id="novel-reader-page">1 / 4</span>
+          </div>
+          <div class="progress-track"><div class="progress-bar" id="novel-bar"></div></div>
+          <div class="reader-card">
+            <p class="book-kicker" id="novel-kicker"></p>
+            <div class="chips">
+              <button class="chip" id="novel-toggle-zh" type="button">看中文</button>
+              <button class="chip" id="novel-toc" type="button">目录</button>
+            </div>
+            <div class="sentence-list" id="novel-lines"></div>
+            <p class="hint">点一个英文单词，看发音、音标和意思。电脑上打开卡片后按 A，可以加入单词本。</p>
+            <div class="actions" style="margin-top: 16px">
+              <button class="ghost" id="novel-prev" type="button">上一页</button>
+              <button class="primary" id="novel-next" type="button">下一页</button>
+              <button class="sun" id="novel-quiz" type="button" hidden>这一章的题</button>
+            </div>
           </div>
         </section>
 
@@ -365,9 +419,25 @@
       </main>
     </div>
 
-    <script src="words.js"></script>
-    <script src="library.js"></script>
-    <script src="app.js"></script>
+    <div id="word-sheet" class="word-sheet" hidden>
+      <button class="word-sheet-close" id="word-sheet-close" type="button">关闭</button>
+      <p class="word-sheet-en" id="word-sheet-en"></p>
+      <p class="word-sheet-ipa" id="word-sheet-ipa"></p>
+      <p class="word-sheet-zh" id="word-sheet-zh"></p>
+      <p class="word-sheet-sentence" id="word-sheet-sentence"></p>
+      <p class="feedback" id="word-sheet-feedback"></p>
+      <div class="word-sheet-actions">
+        <button class="ghost" id="word-sheet-speak" type="button">听单词</button>
+        <button class="ghost" id="word-sheet-speak-line" type="button">听整句</button>
+        <button class="primary" id="word-sheet-add" type="button">加入单词本</button>
+      </div>
+    </div>
+
+    <script src="words.js?v=8"></script>
+    <script src="library.js?v=8"></script>
+    <script src="novels.js?v=8"></script>
+    <script src="glossary.js?v=8"></script>
+    <script src="app.js?v=8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
