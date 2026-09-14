@@ -273,7 +273,7 @@ function moduleLabel(moduleId) {
   if (moduleId === "level-1") return "三年级浅";
   if (moduleId === "level-2") return "三年级";
   if (moduleId === "level-3") return "三年级深";
-  if (moduleId === "grade3-all") return "三年级全部单词";
+  if (moduleId === "grade3-all") return "三年级全部掌握词";
   const found = MODULES.find((item) => item.id === Number(moduleId));
   return found ? `${found.subtitle} ${found.title}` : "单词";
 }
@@ -311,10 +311,10 @@ function renderHome() {
 function renderModules() {
   const rec = recommendedLevel(loadProgress());
   $("module-list").innerHTML = [
-    moduleButton("level-1", "三年级浅", `美国三年级上 · ${wordsForModule("level-1").length} 个词${rec === 1 ? " · 建议" : ""}`),
-    moduleButton("level-2", "三年级", `美国三年级标准 · ${wordsForModule("level-2").length} 个词${rec === 2 ? " · 建议" : ""}`),
-    moduleButton("level-3", "三年级深", `美国三年级下 · ${wordsForModule("level-3").length} 个词${rec === 3 ? " · 建议" : ""}`),
-    moduleButton("grade3-all", "三年级全部单词", `${GRADE3_WORDS.length} 个词，从容易的开始`),
+    moduleButton("level-1", "三年级浅", `美国三年级要掌握的词 · 较易 · ${wordsForModule("level-1").length} 个${rec === 1 ? " · 建议" : ""}`),
+    moduleButton("level-2", "三年级", `美国三年级要掌握的词 · 标准 · ${wordsForModule("level-2").length} 个${rec === 2 ? " · 建议" : ""}`),
+    moduleButton("level-3", "三年级深", `美国三年级要掌握的词 · 较难 · ${wordsForModule("level-3").length} 个${rec === 3 ? " · 建议" : ""}`),
+    moduleButton("grade3-all", "三年级全部掌握词", `${GRADE3_WORDS.length} 个常用词，不是某一本教材的课文表`),
     moduleButton("all", "全部（含课本）", `${allWords().length} 个词`),
     moduleButton("wrong", "错词本", "先把容易错的词拿回来"),
     moduleButton("mine", "我加的词", "课本以外、你自己收集的词"),

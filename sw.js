@@ -1,12 +1,14 @@
-const CACHE_NAME = "xiaociben-v8";
+const CACHE_NAME = "xiaociben-v9";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./words.js",
+  "./grade3-vocab.js",
   "./library.js",
   "./novels.js",
+  "./novels-extra.js",
   "./glossary.js",
   "./manifest.json",
   "./icon.svg",

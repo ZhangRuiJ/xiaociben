@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=9" />
   </head>
   <body>
     <div class="app">
@@ -257,11 +257,11 @@
             <p>2. 听故事、看书时，可以搜书名或主题，比如「恐龙」「魔法」「侦探」。</p>
             <p>3. 有版权的书（比如哈利·波特）不能放进来。搜的时候，我会给你找同主题的原创故事。</p>
             <p>4. 难度还是三档：三年级浅、三年级、三年级深。</p>
-            <p>5. 外研版课本单词还留着，想复习课本可以在「练单词」里选 Module。</p>
+            <p>5. 「练单词」里的三年级词库，是美国三年级小学生需要掌握的常用词，不只是某一本教材上的课文词。外研版课本词还留着，想复习课文可以在下面选 Module。</p>
             <p>6. 电脑不在身边时，用网上的地址打开：<a href="https://zhangruij.github.io/xiaociben/">https://zhangruij.github.io/xiaociben/</a></p>
             <p>7. 第一次换地址时，先到「我的进步」里保存学习记录，再到新地址里找回。不然旧记录还留在原来的网址里。</p>
             <p>8. 在 iPad 的 Safari 打开网上地址后，点分享按钮，选「添加到主屏幕」。以后像打开 App 一样用，不用开电脑。</p>
-            <p>9. 「长篇阅读」里有原创魔法学校，还有《绿野仙踪》《爱丽丝漫游奇境》的三年级改写。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
+            <p>9. 「长篇阅读」里一共六本书：魔法学校、《绿野仙踪》《爱丽丝漫游奇境》的三年级改写，还有校园谜案、棒球和港口救援三本新故事。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
             <p>10. 长篇会记住你读到第几章第几页。下次打开，点「接着读」就行。电脑上打开单词卡片后，按 A 也能加入单词本。</p>
           </div>
         </section>
@@ -433,11 +433,13 @@
       </div>
     </div>
 
-    <script src="words.js?v=8"></script>
-    <script src="library.js?v=8"></script>
-    <script src="novels.js?v=8"></script>
-    <script src="glossary.js?v=8"></script>
-    <script src="app.js?v=8"></script>
+    <script src="words.js?v=9"></script>
+    <script src="grade3-vocab.js?v=9"></script>
+    <script src="library.js?v=9"></script>
+    <script src="novels.js?v=9"></script>
+    <script src="novels-extra.js?v=9"></script>
+    <script src="glossary.js?v=9"></script>
+    <script src="app.js?v=9"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
