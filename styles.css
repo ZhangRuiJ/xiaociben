@@ -740,3 +740,284 @@ input:focus-visible {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.stats-four {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 640px) {
+  .stats-four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.quest-tile {
+  background: linear-gradient(135deg, #fff8e8 0%, #e8f7f2 100%);
+  border-color: #e2c27a;
+}
+
+.quest-continue {
+  background: linear-gradient(135deg, #fff3d4, #dff3ec);
+}
+
+.char-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.char-card {
+  padding: 12px 10px;
+  border-radius: 16px;
+  background: #f7fbf9;
+  border: 2px solid #cfe4db;
+  text-align: center;
+}
+
+.char-card .avatar {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.7rem;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+.char-card strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.char-card span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.quest-hero .rank-line {
+  margin-top: 10px;
+  font-weight: 700;
+  color: var(--teal-dark);
+}
+
+.quest-path {
+  display: grid;
+  gap: 14px;
+}
+
+.quest-stage {
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 2px solid #cfe4db;
+  box-shadow: var(--shadow);
+}
+
+.quest-stage h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.quest-stage p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.quest-days {
+  display: grid;
+  gap: 10px;
+}
+
+.quest-day-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f6fbf8;
+  box-shadow: inset 0 0 0 2px var(--line);
+  text-align: left;
+}
+
+.quest-day-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.quest-day-btn.is-done {
+  background: var(--ok-soft);
+  box-shadow: inset 0 0 0 2px #8fcdb8;
+}
+
+.quest-day-btn.is-current {
+  background: var(--sun-soft);
+  box-shadow: inset 0 0 0 2px var(--sun);
+}
+
+.quest-day-num {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--teal);
+  color: #fff;
+  font-weight: 700;
+}
+
+.quest-day-btn.is-done .quest-day-num {
+  background: var(--ok);
+}
+
+.quest-day-btn.is-locked .quest-day-num {
+  background: #9bb5ad;
+}
+
+.quest-day-btn strong {
+  display: block;
+}
+
+.quest-day-btn span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.quest-avatars {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.quest-avatars .avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+}
+
+.step-btn .step-kind {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e7f4ee;
+  color: var(--teal-dark);
+  font-size: 0.78rem;
+}
+
+.quest-guide {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 2px solid #cfe4db;
+}
+
+.quest-guide .avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  flex: none;
+}
+
+.quest-guide p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.quest-guide small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.chat-log {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.chat-bubble {
+  max-width: 92%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f4faf7;
+  box-shadow: inset 0 0 0 1px var(--line);
+  line-height: 1.5;
+}
+
+.chat-bubble.me {
+  justify-self: end;
+  background: var(--sun-soft);
+  box-shadow: inset 0 0 0 1px #e2c27a;
+}
+
+.chat-bubble b {
+  display: block;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-weight: 500;
+  font-size: 1.08rem;
+}
+
+.chat-bubble small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.quest-lines {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.quest-line {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f6fbf8;
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+}
+
+.quest-line .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.quest-play-body .options {
+  margin-top: 8px;
+}
+
+.quest-celebrate {
+  text-align: center;
+  padding: 18px 8px;
+}
+
+.quest-celebrate .big {
+  font-size: 2.4rem;
+  margin-bottom: 8px;
+}

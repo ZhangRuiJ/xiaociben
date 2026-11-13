@@ -1,4 +1,4 @@
-const CACHE_NAME = "xiaociben-v9";
+const CACHE_NAME = "xiaociben-v10";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const ASSETS = [
   "./novels.js",
   "./novels-extra.js",
   "./glossary.js",
+  "./quest.js",
   "./manifest.json",
   "./icon.svg",
 ];
