@@ -1010,6 +1010,19 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+/** 写句/排句比对：忽略大小写、首尾空格、句末标点 */
+function normalizeQuestAnswer(text) {
+  return String(text || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?。！？]+$/g, "")
+    .toLowerCase();
+}
+
+function answersMatch(typed, expected) {
+  return normalizeQuestAnswer(typed) === normalizeQuestAnswer(expected);
+}
+
 function tokenizeLine(en) {
   return en.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*|[^A-Za-z]+/g) || [en];
 }
@@ -1666,7 +1679,7 @@ function renderSceneOrder(scene) {
   $("order-check").onclick = () => {
     if (state.questLocked) return;
     const built = state.questOrder.join(" ");
-    const ok = built.toLowerCase() === scene.answer.toLowerCase();
+    const ok = answersMatch(built, scene.answer);
     state.questLocked = true;
     $("quest-play-feedback").textContent = ok ? "句子排对了！" : `正确答案：${scene.answer}`;
     if (ok) celebrateCorrect(scene.who, "句子排对了！+1 星星糖");
@@ -1692,45 +1705,93 @@ function handleOrderWord(word, button) {
   if (built) built.textContent = state.questOrder.join(" ");
 }
 
+function revealWriteHint(scene) {
+  const hint = $("quest-write-hint");
+  const showBtn = $("quest-write-show-hint");
+  const listenBtn = $("quest-write-listen");
+  if (hint) {
+    hint.hidden = false;
+    hint.classList.remove("is-hidden");
+    hint.textContent = `提示：${scene.hint}`;
+  }
+  if (showBtn) showBtn.hidden = true;
+  if (listenBtn) {
+    listenBtn.hidden = false;
+    listenBtn.classList.remove("is-hidden");
+  }
+}
+
 function renderSceneWrite(scene) {
+  state.questWriteFails = 0;
+  state.questLocked = false;
+  $("quest-play-feedback").textContent = "";
   $("quest-play-body").innerHTML = `
     <p class="prompt">${escapeHtml(scene.promptZh)}</p>
-    <p class="hint" id="quest-write-hint" hidden>提示：${escapeHtml(scene.hint)}</p>
-    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" spellcheck="false" autocomplete="off" placeholder="先想一想，再写英文" />
+    <p class="hint is-hidden" id="quest-write-hint" hidden>提示：${escapeHtml(scene.hint)}</p>
+    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="先想一想，再写英文" />
   `;
   $("quest-play-actions").innerHTML = `
     <button class="ghost" type="button" id="quest-write-show-hint">看提示</button>
-    <button class="ghost" type="button" id="quest-write-listen" hidden>听一听</button>
+    <button class="ghost is-hidden" type="button" id="quest-write-listen" hidden>听一听</button>
     <button class="primary" type="button" id="quest-write-check">检查</button>
   `;
-  $("quest-write-show-hint").onclick = () => {
-    $("quest-write-hint").hidden = false;
-    $("quest-write-show-hint").hidden = true;
-    $("quest-write-listen").hidden = false;
+  $("quest-write-show-hint").onclick = (event) => {
+    event.preventDefault();
+    revealWriteHint(scene);
   };
-  $("quest-write-listen").onclick = () => speak(scene.answer);
-  $("quest-write-check").onclick = () => {
+  $("quest-write-listen").onclick = (event) => {
+    event.preventDefault();
+    speak(scene.answer);
+  };
+  const checkWrite = () => {
     if (state.questLocked) return;
-    const typed = $("quest-write-input").value.trim().replace(/\s+/g, " ");
-    const ok = typed.toLowerCase() === scene.answer.toLowerCase();
+    const input = $("quest-write-input");
+    const typed = (input?.value || "").trim().replace(/\s+/g, " ");
+    if (!typed) {
+      $("quest-play-feedback").textContent = "先写出英文句子，再点检查。";
+      return;
+    }
+    const ok = answersMatch(typed, scene.answer);
     state.questLocked = true;
-    $("quest-play-feedback").textContent = ok ? "写对了！" : `正确答案：${scene.answer}`;
-    if (ok) celebrateCorrect(scene.who, "写对了！+1 星星糖");
-    else {
-      setSpeakerMood("sad");
-      recordQuestWrong(scene);
-      $("quest-write-hint").hidden = false;
-      $("quest-write-show-hint").hidden = true;
-      $("quest-write-listen").hidden = false;
+    if (ok) {
+      $("quest-play-feedback").textContent = "写对了！";
+      celebrateCorrect(scene.who, "写对了！+1 星星糖");
+      setTimeout(() => {
+        state.questLocked = false;
+        advanceScene();
+      }, 1150);
+      return;
+    }
+    state.questWriteFails = (state.questWriteFails || 0) + 1;
+    setSpeakerMood("sad");
+    recordQuestWrong(scene);
+    if (state.questWriteFails >= 2) {
+      $("quest-play-feedback").textContent = `再看一眼：${scene.answer}`;
+      revealWriteHint(scene);
+    } else {
+      $("quest-play-feedback").textContent = "还不对，再改改。需要时点「看提示」。";
     }
     setTimeout(() => {
       state.questLocked = false;
-      if (ok) advanceScene();
-      else setSpeakerMood("think");
-    }, ok ? 1150 : 1100);
+      setSpeakerMood("think");
+      input?.focus();
+    }, 500);
   };
-  $("quest-write-input").addEventListener("keydown", (event) => {
-    if (event.key === "Enter") $("quest-write-check").click();
+  $("quest-write-check").onclick = (event) => {
+    event.preventDefault();
+    checkWrite();
+  };
+  const input = $("quest-write-input");
+  input.addEventListener("input", () => {
+    state.questLocked = false;
+    if ($("quest-play-feedback").textContent) $("quest-play-feedback").textContent = "";
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      checkWrite();
+    }
   });
 }
 

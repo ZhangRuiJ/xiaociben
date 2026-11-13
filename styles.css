@@ -557,6 +557,16 @@ input:focus-visible {
   font-size: 0.95rem;
 }
 
+[hidden],
+.is-hidden {
+  display: none !important;
+}
+
+#quest-write-hint {
+  margin-top: 8px;
+  text-align: left;
+}
+
 .backup-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
