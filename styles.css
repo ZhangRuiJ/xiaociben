@@ -307,6 +307,14 @@ input:focus-visible {
   text-align: left;
 }
 
+.quest-wrong-row {
+  margin-bottom: 10px;
+}
+
+.quest-wrong-row .ghost {
+  flex-shrink: 0;
+}
+
 .module-card small,
 .word-row small {
   color: var(--muted);

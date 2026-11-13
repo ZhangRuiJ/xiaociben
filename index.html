@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=12" />
+    <link rel="stylesheet" href="styles.css?v=13" />
   </head>
   <body>
     <div class="app">
@@ -60,6 +60,14 @@
             <button class="tile" data-go="dicts" type="button">
               <strong>听写</strong>
               <span>从单词到句子，自己选题</span>
+            </button>
+            <button class="tile" data-go="book" data-filter="theater" type="button">
+              <strong>剧场生词</strong>
+              <span>一日一剧里学过的新词，单独复习</span>
+            </button>
+            <button class="tile" data-go="book" data-filter="quest-wrong" type="button">
+              <strong>剧场错题</strong>
+              <span>答错的句子收在这里，练沟通</span>
             </button>
             <button class="tile" data-go="book" type="button">
               <strong>单词本</strong>
@@ -189,6 +197,8 @@
           </div>
           <div class="chips">
             <button class="chip active" data-book-filter="all" type="button">全部</button>
+            <button class="chip" data-book-filter="theater" type="button">剧场生词</button>
+            <button class="chip" data-book-filter="quest-wrong" type="button">剧场错题</button>
             <button class="chip" data-book-filter="wrong" type="button">错词</button>
             <button class="chip" data-book-filter="mine" type="button">我加的</button>
             <button class="chip" data-book-filter="reading" type="button">读书加的</button>
@@ -227,7 +237,7 @@
               <div class="stat"><b id="progress-streak-big">0 天</b><span>连续学习</span></div>
               <div class="stat"><b id="progress-points">0</b><span>闯关积分</span></div>
             </div>
-            <p class="section-title">十日闯关</p>
+            <p class="section-title">两周剧场（14 集）</p>
             <ul class="wrong-list" id="quest-progress-list"></ul>
             <p class="section-title">还要多看看的词</p>
             <ul class="wrong-list" id="weak-list"></ul>
@@ -266,8 +276,10 @@
             <p>8. 在 iPad 的 Safari 打开网上地址后，点分享按钮，选「添加到主屏幕」。以后像打开 App 一样用，不用开电脑。</p>
             <p>9. 「长篇阅读」里一共六本书：魔法学校、《绿野仙踪》《爱丽丝漫游奇境》的三年级改写，还有校园谜案、棒球和港口救援三本新故事。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
             <p>10. 长篇会记住你读到第几章第几页。下次打开，点「接着读」就行。电脑上打开单词卡片后，按 A 也能加入单词本。</p>
-            <p>11. 首页是「一日一剧」地图。皮皮、奥利、桑尼每天演一集短剧。剧里会插入选答、连线、排句子、写句子。从你开始的那天起，每天开放一集；先完成上一集，才能看新的。</p>
-            <p>12. 答对小游戏会得到「星星糖」，伙伴还会做出开心动作。单词、故事、长篇在右上角「更多」里。</p>
+            <p>11. 首页是「一日一剧」地图。皮皮、奥利、桑尼每天演一集短剧。每集有 15 道练习题（新词 + 语法 + 旧知复习）。从你开始的那天起，每天开放一集；约两周（14 集）走完当前难度，再进阶下一难度。</p>
+            <p>12. 写句子时，英文提示默认藏着；点「看提示」才显示。听一听也要先看提示后才出现，避免直接剧透。</p>
+            <p>13. 答对会得「星星糖」。答错会进「剧场错题」。本集生词会进「剧场生词」，都在「更多」里单独查看，方便练沟通。</p>
+            <p>14. 单词、故事、长篇也在右上角「更多」里。</p>
           </div>
         </section>
 
@@ -460,15 +472,15 @@
       </div>
     </div>
 
-    <script src="words.js?v=12"></script>
-    <script src="grade3-vocab.js?v=12"></script>
-    <script src="library.js?v=12"></script>
-    <script src="novels.js?v=12"></script>
-    <script src="novels-extra.js?v=12"></script>
-    <script src="glossary.js?v=12"></script>
-    <script src="quest.js?v=12"></script>
-    <script src="characters.js?v=12"></script>
-    <script src="app.js?v=12"></script>
+    <script src="words.js?v=13"></script>
+    <script src="grade3-vocab.js?v=13"></script>
+    <script src="library.js?v=13"></script>
+    <script src="novels.js?v=13"></script>
+    <script src="novels-extra.js?v=13"></script>
+    <script src="glossary.js?v=13"></script>
+    <script src="quest.js?v=13"></script>
+    <script src="characters.js?v=13"></script>
+    <script src="app.js?v=13"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

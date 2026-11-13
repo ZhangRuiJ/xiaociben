@@ -51,6 +51,8 @@ function emptyProgress() {
       seriesStart: "",
       badges: {},
       stars: 0,
+      words: {},
+      wrong: [],
     },
   };
 }
@@ -63,6 +65,8 @@ function questProgress(progress = loadProgress()) {
     ...raw,
     days: { ...base.days, ...(raw.days || {}) },
     badges: { ...base.badges, ...(raw.badges || {}) },
+    words: { ...base.words, ...(raw.words || {}) },
+    wrong: Array.isArray(raw.wrong) ? raw.wrong : [],
   };
 }
 
@@ -199,6 +203,24 @@ function wordsForModule(moduleId) {
   }
   if (moduleId === "mine") return loadProgress().custom || [];
   if (moduleId === "reading") return (loadProgress().custom || []).filter((word) => word.source === "reading");
+  if (moduleId === "theater") {
+    return Object.values(questProgress().words || {}).map((word) => ({
+      ...word,
+      id: word.id || `theater-${word.en}`,
+      module: "theater",
+      source: "theater",
+    }));
+  }
+  if (moduleId === "quest-wrong") {
+    return (questProgress().wrong || []).map((item, index) => ({
+      id: item.id || `qw-${index}`,
+      en: item.answer || item.en || "",
+      zh: item.promptZh || "剧场错题",
+      example: item.answer || "",
+      module: "quest-wrong",
+      source: "quest-wrong",
+    }));
+  }
   if (moduleId === "level-1") return GRADE3_WORDS.filter((word) => word.level === 1);
   if (moduleId === "level-2") return GRADE3_WORDS.filter((word) => word.level === 2);
   if (moduleId === "level-3") return GRADE3_WORDS.filter((word) => word.level === 3);
@@ -294,6 +316,9 @@ function moduleLabel(moduleId) {
   if (moduleId === "all") return "全部单词";
   if (moduleId === "wrong") return "错词本";
   if (moduleId === "mine") return "我加的词";
+  if (moduleId === "reading") return "读书加的";
+  if (moduleId === "theater") return "剧场生词";
+  if (moduleId === "quest-wrong") return "剧场错题";
   if (moduleId === "level-1") return "三年级浅";
   if (moduleId === "level-2") return "三年级";
   if (moduleId === "level-3") return "三年级深";
@@ -336,14 +361,30 @@ function renderHome() {
         .join("")}
     </div>
     <h2>一日一剧</h2>
-    <p>皮皮、奥利、桑尼每天演一集。点开今日海报，看对话、连线、排句、写句子。</p>
-    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · 🍬${quest.stars || 0} · ${doneCount}/10 集 · 连续 ${progress.streak || 0} 天</p>
+    <p>皮皮、奥利、桑尼每天演一集。每集 15 题：新词、语法、复习旧知。约两周进阶。</p>
+    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · 🍬${quest.stars || 0} · ${doneCount}/14 集 · 连续 ${progress.streak || 0} 天</p>
     <button class="tile wide quest-continue theater-today-btn" type="button" data-open-quest-day="${todayEp.id}" ${status.playable ? "" : "disabled"}>
       <strong>${todayTitle}</strong>
       <span>${todayMeta}</span>
     </button>
   `;
   $("theater-map").innerHTML = QUEST_STAGES.map((stage) => {
+    if (!stage.days.length) {
+      const unlocked = isLevel2Unlocked(quest);
+      return `
+        <section class="quest-stage theater-season">
+          <h3>${stage.titleZh}</h3>
+          <p class="hint">${unlocked ? "下一难度关卡正在准备，先用单词本和错题集巩固沟通。" : stage.lockedHintZh || "先完成前 14 集"}</p>
+          <div class="poster-row">
+            <button class="poster-card is-locked" type="button" disabled style="--poster:#9bb5ad">
+              <span class="poster-art">🔒</span>
+              <strong>Level 2</strong>
+              <b>进阶沟通</b>
+              <span>${unlocked ? "即将上新" : "完成第14集解锁"}</span>
+            </button>
+          </div>
+        </section>`;
+    }
     const days = stage.days.map((id) => findQuestDay(id)).filter(Boolean);
     return `
       <section class="quest-stage theater-season">
@@ -363,7 +404,7 @@ function renderHome() {
               return `
                 <button class="${cls}" type="button" data-open-quest-day="${day.id}" ${epStatus.playable ? "" : "disabled"} style="--poster:${day.color}">
                   <span class="poster-art">${day.poster}</span>
-                  <strong>第 ${day.id} 集</strong>
+                  <strong>第 ${day.id} 集 · 15题</strong>
                   <b>${day.titleZh}</b>
                   <span>${epStatus.done ? `${day.badge.emoji} 已看完` : epStatus.label}</span>
                 </button>`;
@@ -853,7 +894,28 @@ function renderResult() {
 }
 
 function renderBook(filter = "all") {
-  const list = wordsForModule(filter);
+  document.querySelectorAll("[data-book-filter]").forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.bookFilter === filter);
+  });
+  let list;
+  if (filter === "quest-wrong") {
+    const wrong = questProgress().wrong || [];
+    $("book-list").innerHTML = wrong.length
+      ? wrong
+          .slice()
+          .reverse()
+          .map(
+            (item) => `<div class="word-row quest-wrong-row">
+              <span><strong>${escapeHtml(item.promptZh || "错题")}</strong><br><small>答案：${escapeHtml(item.answer || "")} · 第 ${item.episodeId || "?"} 集</small></span>
+              <button class="ghost" type="button" data-speak="${escapeHtml(item.answer || "")}">听</button>
+            </div>`,
+          )
+          .join("")
+      : `<div class="empty">还没有剧场错题。答错后会自动收进来，方便复习沟通用语。</div>`;
+    show("book");
+    return;
+  }
+  list = wordsForModule(filter);
   $("book-list").innerHTML = list.length
     ? list
         .map(
@@ -889,7 +951,8 @@ function renderProgress() {
       <li>等级：<b>${rank.nameZh}</b></li>
       <li>剧场积分：${quest.points || 0}</li>
       <li>星星糖：🍬 ${quest.stars || 0}</li>
-      <li>已看完：${daysDone} / 10 集</li>
+      <li>已看完：${daysDone} / 14 集（约两周）</li>
+      <li>下一难度：${isLevel2Unlocked(quest) ? "已解锁（制作中，先巩固沟通）" : "完成第 14 集后开放"}</li>
       <li>开播日：${quest.seriesStart || "还没有"}</li>
       <li>徽章：${badges || "还没有"}</li>
       <li>最近一集：${quest.lastQuestDate || "还没有"}</li>
@@ -1318,11 +1381,76 @@ function completeEpisode(dayId) {
   return first;
 }
 
+function learnTheaterWords(day) {
+  if (!day?.words?.length) return;
+  const progress = loadProgress();
+  progress.quest = questProgress(progress);
+  let changed = false;
+  day.words.forEach((word) => {
+    const key = String(word.en || "")
+      .trim()
+      .toLowerCase();
+    if (!key || progress.quest.words[key]) return;
+    progress.quest.words[key] = {
+      id: `theater-${key}`,
+      en: word.en,
+      zh: word.zh || "",
+      example: day.title || "",
+      module: "theater",
+      source: "theater",
+      episodeId: day.id,
+    };
+    changed = true;
+  });
+  if (changed) saveProgress(progress);
+}
+
+function recordQuestWrong(scene, extra = {}) {
+  if (!scene || !state.questDay) return;
+  const progress = loadProgress();
+  progress.quest = questProgress(progress);
+  let answer = extra.answer || "";
+  if (!answer) {
+    if (scene.type === "choice") answer = scene.options?.[scene.answer] || "";
+    else if (scene.type === "write" || scene.type === "order") answer = scene.answer || "";
+    else if (scene.type === "match" && Number.isInteger(extra.pairIndex)) {
+      const pair = scene.pairs[extra.pairIndex];
+      answer = pair ? `${pair.left} → ${pair.right}` : "";
+    }
+  }
+  const entry = {
+    id: `qw-${state.questDay.id}-${scene.type}-${Date.now()}`,
+    episodeId: state.questDay.id,
+    type: scene.type,
+    promptZh: extra.promptZh || scene.promptZh || "剧场错题",
+    answer: String(answer || scene.hint || ""),
+    at: new Date().toISOString(),
+  };
+  const list = progress.quest.wrong || [];
+  const exists = list.some((item) => item.promptZh === entry.promptZh && item.answer === entry.answer);
+  if (exists) return;
+  progress.quest.wrong = [...list, entry].slice(-80);
+  saveProgress(progress);
+}
+
+function questGradedLabel(day, sceneIndex) {
+  const scenes = day?.scenes || [];
+  const scene = scenes[sceneIndex];
+  const gradedBefore = scenes
+    .slice(0, sceneIndex)
+    .filter((item) => ["choice", "match", "order", "write"].includes(item.type)).length;
+  if (!scene) return "0 / 15";
+  if (["choice", "match", "order", "write"].includes(scene.type)) return `${gradedBefore + 1} / 15`;
+  if (scene.type === "finale") return "15 / 15";
+  return `对话 · ${gradedBefore} / 15`;
+}
+
 function openQuestDay(dayId) {
   ensureSeriesStart();
   const day = findQuestDay(dayId);
   const status = episodeStatus(dayId);
   if (!day || !status.playable) return;
+  learnTheaterWords(day);
   state.questDay = day;
   state.questSceneIndex = 0;
   state.questLocked = false;
@@ -1338,13 +1466,13 @@ function renderTheaterScene() {
   const who = scene.who ? questChar(scene.who) : questChar("pip");
   const mood = scene.type === "say" ? "talk" : scene.type === "finale" ? "celebrate" : scene.type === "write" ? "think" : "idle";
   $("quest-play-title").textContent = `第 ${day.id} 集 · ${day.titleZh}`;
-  $("quest-play-progress").textContent = `${state.questSceneIndex + 1} / ${day.scenes.length}`;
+  $("quest-play-progress").textContent = questGradedLabel(day, state.questSceneIndex);
   $("quest-guide").innerHTML = `
     <div class="theater-curtain" style="--poster:${day.color}">
       <span class="poster-art">${day.poster}</span>
       <div>
         <p><b>${day.placeZh}</b></p>
-        <small>${day.tipZh}</small>
+        <small>${day.tipZh}${day.grammarZh ? ` · 语法：${day.grammarZh}` : ""}</small>
       </div>
     </div>
     <div class="quest-guide theater-speaker">
@@ -1433,7 +1561,10 @@ function handleQuestChoice(choiceIndex) {
   });
   $("quest-play-feedback").textContent = ok ? "说得对！继续往下演。" : `更合适的是：${scene.options[scene.answer]}`;
   if (ok) celebrateCorrect(scene.who, "说得对！+1 星星糖");
-  else setSpeakerMood("sad");
+  else {
+    setSpeakerMood("sad");
+    recordQuestWrong(scene);
+  }
   setTimeout(() => {
     state.questLocked = false;
     if (ok) advanceScene();
@@ -1497,6 +1628,7 @@ function handleMatchPick(side, index) {
   } else {
     $("quest-play-feedback").textContent = "不对，再试一次。";
     setSpeakerMood("sad");
+    recordQuestWrong(scene, { pairIndex: state.questMatch.left });
   }
   setTimeout(() => {
     state.questMatch.left = null;
@@ -1538,7 +1670,10 @@ function renderSceneOrder(scene) {
     state.questLocked = true;
     $("quest-play-feedback").textContent = ok ? "句子排对了！" : `正确答案：${scene.answer}`;
     if (ok) celebrateCorrect(scene.who, "句子排对了！+1 星星糖");
-    else setSpeakerMood("sad");
+    else {
+      setSpeakerMood("sad");
+      recordQuestWrong(scene);
+    }
     setTimeout(() => {
       state.questLocked = false;
       if (ok) {
@@ -1560,13 +1695,19 @@ function handleOrderWord(word, button) {
 function renderSceneWrite(scene) {
   $("quest-play-body").innerHTML = `
     <p class="prompt">${escapeHtml(scene.promptZh)}</p>
-    <p class="hint">提示：${escapeHtml(scene.hint)}</p>
-    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" spellcheck="false" autocomplete="off" />
+    <p class="hint" id="quest-write-hint" hidden>提示：${escapeHtml(scene.hint)}</p>
+    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" spellcheck="false" autocomplete="off" placeholder="先想一想，再写英文" />
   `;
   $("quest-play-actions").innerHTML = `
-    <button class="ghost" type="button" id="quest-write-listen">听一听</button>
+    <button class="ghost" type="button" id="quest-write-show-hint">看提示</button>
+    <button class="ghost" type="button" id="quest-write-listen" hidden>听一听</button>
     <button class="primary" type="button" id="quest-write-check">检查</button>
   `;
+  $("quest-write-show-hint").onclick = () => {
+    $("quest-write-hint").hidden = false;
+    $("quest-write-show-hint").hidden = true;
+    $("quest-write-listen").hidden = false;
+  };
   $("quest-write-listen").onclick = () => speak(scene.answer);
   $("quest-write-check").onclick = () => {
     if (state.questLocked) return;
@@ -1575,7 +1716,13 @@ function renderSceneWrite(scene) {
     state.questLocked = true;
     $("quest-play-feedback").textContent = ok ? "写对了！" : `正确答案：${scene.answer}`;
     if (ok) celebrateCorrect(scene.who, "写对了！+1 星星糖");
-    else setSpeakerMood("sad");
+    else {
+      setSpeakerMood("sad");
+      recordQuestWrong(scene);
+      $("quest-write-hint").hidden = false;
+      $("quest-write-show-hint").hidden = true;
+      $("quest-write-listen").hidden = false;
+    }
     setTimeout(() => {
       state.questLocked = false;
       if (ok) advanceScene();
@@ -1585,7 +1732,6 @@ function renderSceneWrite(scene) {
   $("quest-write-input").addEventListener("keydown", (event) => {
     if (event.key === "Enter") $("quest-write-check").click();
   });
-  speak(scene.answer);
 }
 
 function renderSceneFinale(scene) {
@@ -1625,10 +1771,16 @@ function finishEpisode() {
       <p>现在等级：${rank.nameZh} · ${quest.points || 0} 分</p>
     </div>
   `;
-  $("quest-play-feedback").textContent = first ? "明天地图上会开放下一集。" : "可以回地图看别的集，或再看一遍。";
+  const unlockedNext = day.id >= 14 && isLevel2Unlocked(quest);
+  $("quest-play-feedback").textContent = first
+    ? unlockedNext
+      ? "两周沟通关卡完成！下一难度即将开放，先去单词本和错题集巩固。"
+      : "明天地图上会开放下一集。"
+    : "可以回地图看别的集，或再看一遍。";
   $("quest-play-actions").innerHTML = `
     <button class="primary" type="button" data-go="home">回到剧场地图</button>
-    <button class="sun" type="button" data-open-quest-day="${day.id}">再看一集</button>
+    <button class="sun" type="button" data-go="book" data-filter="theater">剧场生词</button>
+    <button class="ghost" type="button" data-go="book" data-filter="quest-wrong">错题集</button>
   `;
   show("quest-play");
 }
