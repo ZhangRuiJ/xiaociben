@@ -1489,7 +1489,7 @@ function renderTheaterScene() {
       <span class="poster-art">${day.poster}</span>
       <div>
         <p><b>${day.placeZh}</b></p>
-        <small>${day.tipZh}${day.grammarZh ? ` · 语法：${day.grammarZh}` : ""}</small>
+        <small>${day.tipZh}${scene.type === "write" ? "" : day.grammarZh ? ` · 语法：${day.grammarZh}` : ""}</small>
       </div>
     </div>
     <div class="quest-guide theater-speaker">
@@ -1711,18 +1711,25 @@ function handleOrderWord(word, button) {
 
 function revealWriteHint(scene) {
   const hint = $("quest-write-hint");
-  const showBtn = $("quest-write-show-hint");
-  const listenBtn = $("quest-write-listen");
   if (hint) {
     hint.hidden = false;
-    hint.classList.remove("is-hidden");
-    hint.textContent = `提示：${scene.hint}`;
+    hint.removeAttribute("hidden");
+    hint.style.display = "block";
+    hint.textContent = `提示：${scene.hint || scene.answer || ""}`;
   }
-  if (showBtn) showBtn.hidden = true;
-  if (listenBtn) {
-    listenBtn.hidden = false;
-    listenBtn.classList.remove("is-hidden");
-  }
+  // 看提示后才出现「听一听」，检查按钮保留
+  $("quest-play-actions").innerHTML = `
+    <button class="ghost" type="button" id="quest-write-listen">听一听</button>
+    <button class="primary" type="button" id="quest-write-check">检查</button>
+  `;
+  $("quest-write-listen").onclick = (event) => {
+    event.preventDefault();
+    speak(scene.answer);
+  };
+  $("quest-write-check").onclick = (event) => {
+    event.preventDefault();
+    if (typeof state.questWriteCheck === "function") state.questWriteCheck();
+  };
 }
 
 function clearWriteAdvanceTimer() {
@@ -1756,26 +1763,19 @@ function showWriteNextActions(listenAnswer) {
 function renderSceneWrite(scene) {
   clearWriteAdvanceTimer();
   state.questWriteFails = 0;
+  state.questWriteHintOn = false;
   state.questLocked = false;
   $("quest-play-feedback").textContent = "";
+  // 答案绝不预写进 DOM，避免缓存/样式失效时直接剧透
   $("quest-play-body").innerHTML = `
     <p class="prompt">${escapeHtml(scene.promptZh)}</p>
-    <p class="hint is-hidden" id="quest-write-hint" hidden>提示：${escapeHtml(scene.hint)}</p>
+    <p class="hint" id="quest-write-hint" hidden style="display:none"></p>
     <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="先想一想，再写英文" />
   `;
   $("quest-play-actions").innerHTML = `
     <button class="ghost" type="button" id="quest-write-show-hint">看提示</button>
-    <button class="ghost is-hidden" type="button" id="quest-write-listen" hidden>听一听</button>
     <button class="primary" type="button" id="quest-write-check">检查</button>
   `;
-  $("quest-write-show-hint").onclick = (event) => {
-    event.preventDefault();
-    revealWriteHint(scene);
-  };
-  $("quest-write-listen").onclick = (event) => {
-    event.preventDefault();
-    speak(scene.answer);
-  };
   const checkWrite = () => {
     if (state.questLocked) return;
     const input = $("quest-write-input");
@@ -1802,6 +1802,7 @@ function renderSceneWrite(scene) {
     recordQuestWrong(scene);
     if (state.questWriteFails >= 2) {
       $("quest-play-feedback").textContent = `正确答案：${scene.answer}`;
+      state.questWriteHintOn = true;
       revealWriteHint(scene);
       showWriteNextActions(scene.answer);
       state.questWriteTimer = setTimeout(goNextWriteScene, 1600);
@@ -1813,6 +1814,12 @@ function renderSceneWrite(scene) {
       setSpeakerMood("think");
       input?.focus();
     }, 400);
+  };
+  state.questWriteCheck = checkWrite;
+  $("quest-write-show-hint").onclick = (event) => {
+    event.preventDefault();
+    state.questWriteHintOn = true;
+    revealWriteHint(scene);
   };
   $("quest-write-check").onclick = (event) => {
     event.preventDefault();

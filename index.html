@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=15" />
+    <link rel="stylesheet" href="styles.css?v=16" />
   </head>
   <body>
     <div class="app">
@@ -472,20 +472,24 @@
       </div>
     </div>
 
-    <script src="words.js?v=15"></script>
-    <script src="grade3-vocab.js?v=15"></script>
-    <script src="library.js?v=15"></script>
-    <script src="novels.js?v=15"></script>
-    <script src="novels-extra.js?v=15"></script>
-    <script src="glossary.js?v=15"></script>
-    <script src="quest.js?v=15"></script>
-    <script src="characters.js?v=15"></script>
-    <script src="app.js?v=15"></script>
+    <script src="words.js?v=16"></script>
+    <script src="grade3-vocab.js?v=16"></script>
+    <script src="library.js?v=16"></script>
+    <script src="novels.js?v=16"></script>
+    <script src="novels-extra.js?v=16"></script>
+    <script src="glossary.js?v=16"></script>
+    <script src="quest.js?v=16"></script>
+    <script src="characters.js?v=16"></script>
+    <script src="app.js?v=16"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js?v=15").then((reg) => {
-          reg.update().catch(() => {});
-        }).catch(() => {});
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          regs.forEach((reg) => reg.update().catch(() => {}));
+        });
+        caches.keys().then((keys) =>
+          Promise.all(keys.filter((key) => key.startsWith("xiaociben-") && key !== "xiaociben-v16").map((key) => caches.delete(key))),
+        );
+        navigator.serviceWorker.register("./sw.js?v=16").catch(() => {});
       }
     </script>
   </body>
