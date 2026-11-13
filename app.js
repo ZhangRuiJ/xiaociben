@@ -1010,12 +1010,16 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
-/** 写句/排句比对：忽略大小写、首尾空格、句末标点 */
+/** 写句/排句比对：忽略大小写、空白、句末标点、不可见字符 */
 function normalizeQuestAnswer(text) {
   return String(text || "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[‘’‛]/g, "'")
+    .replace(/[“”]/g, '"')
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/[.!?。！？]+$/g, "")
+    .replace(/[.!?。！？,，;；:：…]+$/g, "")
     .toLowerCase();
 }
 
@@ -1721,7 +1725,36 @@ function revealWriteHint(scene) {
   }
 }
 
+function clearWriteAdvanceTimer() {
+  if (state.questWriteTimer) {
+    clearTimeout(state.questWriteTimer);
+    state.questWriteTimer = null;
+  }
+}
+
+function goNextWriteScene() {
+  clearWriteAdvanceTimer();
+  state.questLocked = false;
+  advanceScene();
+}
+
+function showWriteNextActions(listenAnswer) {
+  $("quest-play-actions").innerHTML = `
+    <button class="ghost" type="button" id="quest-write-listen">听一听</button>
+    <button class="primary" type="button" id="quest-write-next">下一题</button>
+  `;
+  $("quest-write-listen").onclick = (event) => {
+    event.preventDefault();
+    speak(listenAnswer);
+  };
+  $("quest-write-next").onclick = (event) => {
+    event.preventDefault();
+    goNextWriteScene();
+  };
+}
+
 function renderSceneWrite(scene) {
+  clearWriteAdvanceTimer();
   state.questWriteFails = 0;
   state.questLocked = false;
   $("quest-play-feedback").textContent = "";
@@ -1755,27 +1788,31 @@ function renderSceneWrite(scene) {
     state.questLocked = true;
     if (ok) {
       $("quest-play-feedback").textContent = "写对了！";
-      celebrateCorrect(scene.who, "写对了！+1 星星糖");
-      setTimeout(() => {
-        state.questLocked = false;
-        advanceScene();
-      }, 1150);
+      try {
+        celebrateCorrect(scene.who, "写对了！+1 星星糖");
+      } catch (_err) {
+        /* 奖励弹窗失败也不挡下一题 */
+      }
+      showWriteNextActions(scene.answer);
+      state.questWriteTimer = setTimeout(goNextWriteScene, 900);
       return;
     }
     state.questWriteFails = (state.questWriteFails || 0) + 1;
     setSpeakerMood("sad");
     recordQuestWrong(scene);
     if (state.questWriteFails >= 2) {
-      $("quest-play-feedback").textContent = `再看一眼：${scene.answer}`;
+      $("quest-play-feedback").textContent = `正确答案：${scene.answer}`;
       revealWriteHint(scene);
-    } else {
-      $("quest-play-feedback").textContent = "还不对，再改改。需要时点「看提示」。";
+      showWriteNextActions(scene.answer);
+      state.questWriteTimer = setTimeout(goNextWriteScene, 1600);
+      return;
     }
+    $("quest-play-feedback").textContent = "还不对，再改改。需要时点「看提示」。";
     setTimeout(() => {
       state.questLocked = false;
       setSpeakerMood("think");
       input?.focus();
-    }, 500);
+    }, 400);
   };
   $("quest-write-check").onclick = (event) => {
     event.preventDefault();
@@ -1783,6 +1820,7 @@ function renderSceneWrite(scene) {
   };
   const input = $("quest-write-input");
   input.addEventListener("input", () => {
+    if (state.questWriteTimer) return;
     state.questLocked = false;
     if ($("quest-play-feedback").textContent) $("quest-play-feedback").textContent = "";
   });

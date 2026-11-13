@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=14" />
+    <link rel="stylesheet" href="styles.css?v=15" />
   </head>
   <body>
     <div class="app">
@@ -472,18 +472,20 @@
       </div>
     </div>
 
-    <script src="words.js?v=14"></script>
-    <script src="grade3-vocab.js?v=14"></script>
-    <script src="library.js?v=14"></script>
-    <script src="novels.js?v=14"></script>
-    <script src="novels-extra.js?v=14"></script>
-    <script src="glossary.js?v=14"></script>
-    <script src="quest.js?v=14"></script>
-    <script src="characters.js?v=14"></script>
-    <script src="app.js?v=14"></script>
+    <script src="words.js?v=15"></script>
+    <script src="grade3-vocab.js?v=15"></script>
+    <script src="library.js?v=15"></script>
+    <script src="novels.js?v=15"></script>
+    <script src="novels-extra.js?v=15"></script>
+    <script src="glossary.js?v=15"></script>
+    <script src="quest.js?v=15"></script>
+    <script src="characters.js?v=15"></script>
+    <script src="app.js?v=15"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
+        navigator.serviceWorker.register("./sw.js?v=15").then((reg) => {
+          reg.update().catch(() => {});
+        }).catch(() => {});
       }
     </script>
   </body>
