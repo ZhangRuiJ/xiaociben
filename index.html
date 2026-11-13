@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=10" />
+    <link rel="stylesheet" href="styles.css?v=11" />
   </head>
   <body>
     <div class="app">
@@ -18,39 +18,29 @@
           <img class="logo" src="icon.svg" alt="" />
           <div>
             <h1>小词本</h1>
-            <p>美国小学三年级 · 可搜索书库</p>
+            <p>一日一剧 · 美国小学三年级</p>
           </div>
         </div>
-        <button class="ghost" data-go="help" type="button">怎么用</button>
+        <div class="topbar-actions">
+          <button class="ghost" data-go="more" type="button">更多</button>
+          <button class="ghost" data-go="help" type="button">怎么用</button>
+        </div>
       </header>
 
       <main>
         <section class="screen active" data-view="home">
-          <div class="hero">
-            <h2>今天想先练哪一样？</h2>
-            <p>故事和书按美国小学三年级来写。也可以跟皮皮、奥利、桑尼一起闯关，连续学十天。</p>
-            <button class="tile wide continue-tile quest-continue" id="home-quest-continue" type="button" hidden>
-              <strong id="home-quest-title">继续闯关</strong>
-              <span id="home-quest-meta">打开十日闯关</span>
-            </button>
-            <button class="tile wide continue-tile" id="home-continue" type="button" hidden>
-              <strong id="home-continue-title">接着读</strong>
-              <span id="home-continue-meta">打开长篇阅读</span>
-            </button>
-            <div class="stats stats-four">
-              <div class="stat"><b id="stat-known">0</b><span>比较熟的词</span></div>
-              <div class="stat"><b id="stat-wrong">0</b><span>还要再练</span></div>
-              <div class="stat"><b id="stat-streak">0</b><span>连续学习</span></div>
-              <div class="stat"><b id="stat-points">0</b><span>闯关积分</span></div>
-            </div>
-            <div class="char-strip" id="home-chars"></div>
+          <div class="theater-hero" id="theater-hero"></div>
+          <div class="theater-map" id="theater-map"></div>
+        </section>
+
+        <section class="screen" data-view="more">
+          <div class="play-head">
+            <button class="ghost" data-go="home" type="button">返回</button>
+            <strong>更多练习</strong>
+            <span></span>
           </div>
-          <p class="recommend" id="home-recommend">现在建议从入门开始。</p>
+          <p class="hint">单词、故事、长篇和听写还在这里。每天主线请回首页看剧。</p>
           <div class="grid">
-            <button class="tile wide quest-tile" data-go="quest" type="button">
-              <strong>十日闯关</strong>
-              <span>跟 IP 伙伴学说话：听、读、对话、写、练，每天 10 分</span>
-            </button>
             <button class="tile" data-go="modules" type="button">
               <strong>练单词</strong>
               <span>卡片、选择，按难度往上走</span>
@@ -77,14 +67,14 @@
             </button>
             <button class="tile" data-go="progress" type="button">
               <strong>我的进步</strong>
-              <span>单词、故事和书都会记下来</span>
+              <span>单词、剧场和书都会记下来</span>
             </button>
           </div>
         </section>
 
         <section class="screen" data-view="modules">
           <div class="play-head">
-            <button class="ghost" data-go="home" type="button">返回</button>
+            <button class="ghost" data-go="more" type="button">返回</button>
             <strong>选一个单元</strong>
             <span></span>
           </div>
@@ -276,37 +266,18 @@
             <p>8. 在 iPad 的 Safari 打开网上地址后，点分享按钮，选「添加到主屏幕」。以后像打开 App 一样用，不用开电脑。</p>
             <p>9. 「长篇阅读」里一共六本书：魔法学校、《绿野仙踪》《爱丽丝漫游奇境》的三年级改写，还有校园谜案、棒球和港口救援三本新故事。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
             <p>10. 长篇会记住你读到第几章第几页。下次打开，点「接着读」就行。电脑上打开单词卡片后，按 A 也能加入单词本。</p>
-            <p>11. 「十日闯关」里有三位伙伴：狐狸皮皮、猫头鹰奥利、海豹桑尼。分三个板块，每天一个主题（介绍自己、买卖、问路……）。每天完成听、读、对话、写、练，可得 10 积分；连续学、积分够了会晋级。</p>
+            <p>11. 首页是「一日一剧」地图。皮皮、奥利、桑尼每天演一集短剧。剧里会插入选答、连线、排句子、写句子。从你开始的那天起，每天开放一集；先完成上一集，才能看新的。</p>
+            <p>12. 单词、故事、长篇还在右上角「更多」里。</p>
           </div>
-        </section>
-
-        <section class="screen" data-view="quest">
-          <div class="play-head">
-            <button class="ghost" data-go="home" type="button">返回</button>
-            <strong>十日闯关</strong>
-            <span></span>
-          </div>
-          <div class="hero quest-hero" id="quest-map-hero"></div>
-          <div class="quest-path" id="quest-path"></div>
-        </section>
-
-        <section class="screen" data-view="quest-day">
-          <div class="play-head">
-            <button class="ghost" data-go="quest" type="button">返回</button>
-            <strong id="quest-day-title">今日主题</strong>
-            <span id="quest-day-meta"></span>
-          </div>
-          <div class="hero quest-day-hero" id="quest-day-hero"></div>
-          <div class="module-list" id="quest-step-list"></div>
         </section>
 
         <section class="screen" data-view="quest-play">
           <div class="play-head">
-            <button class="ghost" id="quest-play-back" type="button">返回</button>
-            <strong id="quest-play-title">闯关</strong>
+            <button class="ghost" id="quest-play-back" type="button">返回地图</button>
+            <strong id="quest-play-title">今日一集</strong>
             <span id="quest-play-progress">1 / 1</span>
           </div>
-          <div class="quest-guide" id="quest-guide"></div>
+          <div class="theater-stage" id="quest-guide"></div>
           <div class="quest-play-body" id="quest-play-body"></div>
           <p class="feedback" id="quest-play-feedback"></p>
           <div class="actions" id="quest-play-actions"></div>
@@ -479,14 +450,14 @@
       </div>
     </div>
 
-    <script src="words.js?v=10"></script>
-    <script src="grade3-vocab.js?v=10"></script>
-    <script src="library.js?v=10"></script>
-    <script src="novels.js?v=10"></script>
-    <script src="novels-extra.js?v=10"></script>
-    <script src="glossary.js?v=10"></script>
-    <script src="quest.js?v=10"></script>
-    <script src="app.js?v=10"></script>
+    <script src="words.js?v=11"></script>
+    <script src="grade3-vocab.js?v=11"></script>
+    <script src="library.js?v=11"></script>
+    <script src="novels.js?v=11"></script>
+    <script src="novels-extra.js?v=11"></script>
+    <script src="glossary.js?v=11"></script>
+    <script src="quest.js?v=11"></script>
+    <script src="app.js?v=11"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

@@ -741,6 +741,207 @@ input:focus-visible {
   }
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theater-hero {
+  margin: 18px 0 16px;
+  padding: 22px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top right, rgba(255, 220, 140, 0.55), transparent 42%),
+    linear-gradient(160deg, #fff9ec, #e7f6f0 70%);
+  border: 2px solid #d7c39a;
+  box-shadow: var(--shadow);
+}
+
+.theater-hero h2 {
+  margin: 10px 0 8px;
+  font-size: clamp(1.55rem, 3vw, 2rem);
+}
+
+.theater-hero p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.theater-cast {
+  display: flex;
+  gap: 8px;
+}
+
+.theater-cast .avatar,
+.theater-speaker .avatar,
+.theater-curtain .poster-art {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.45rem;
+  flex: none;
+}
+
+.theater-today-btn {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.theater-today-btn:disabled {
+  opacity: 0.65;
+}
+
+.theater-map {
+  display: grid;
+  gap: 14px;
+}
+
+.theater-season h3 {
+  margin: 0 0 10px;
+}
+
+.poster-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.poster-card {
+  min-height: 170px;
+  padding: 14px;
+  border-radius: 18px;
+  text-align: left;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--poster) 22%, white), #fffdf6 58%);
+  border: 2px solid color-mix(in srgb, var(--poster) 45%, #cfe4db);
+  box-shadow: var(--shadow);
+}
+
+.poster-card .poster-art {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--poster) 28%, white);
+  font-size: 1.7rem;
+}
+
+.poster-card strong {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.poster-card b {
+  display: block;
+  margin: 4px 0;
+  font-size: 1.05rem;
+}
+
+.poster-card span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.poster-card.is-current {
+  box-shadow: inset 0 0 0 2px var(--sun), var(--shadow);
+}
+
+.poster-card.is-done {
+  background: var(--ok-soft);
+}
+
+.poster-card.is-locked,
+.poster-card:disabled {
+  opacity: 0.55;
+  filter: grayscale(0.25);
+}
+
+.theater-stage {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.theater-curtain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--poster) 24%, white), #fffdf6);
+  border: 2px solid #cfe4db;
+}
+
+.theater-curtain p {
+  margin: 0;
+}
+
+.theater-line {
+  max-width: 100%;
+  padding: 18px;
+  font-size: 1.05rem;
+}
+
+.match-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.match-col {
+  display: grid;
+  gap: 8px;
+}
+
+.match-item {
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f6fbf8;
+  box-shadow: inset 0 0 0 2px var(--line);
+  text-align: left;
+}
+
+.match-item.is-picked {
+  background: var(--sun-soft);
+  box-shadow: inset 0 0 0 2px var(--sun);
+}
+
+.match-item.is-done {
+  background: var(--ok-soft);
+  box-shadow: inset 0 0 0 2px #8fcdb8;
+}
+
+.order-built {
+  min-height: 64px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff8e8;
+  box-shadow: inset 0 0 0 2px #e2c27a;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.order-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-chip {
+  background: #fffdf6;
+}
+
 .stats-four {
   grid-template-columns: repeat(2, 1fr);
 }

@@ -26,12 +26,10 @@ const state = {
   chapterIndex: 0,
   wordCard: null,
   questDay: null,
-  questStepIndex: 0,
-  questItemIndex: 0,
-  questChatLog: [],
-  questChatTurn: 0,
-  questAnswers: [],
+  questSceneIndex: 0,
   questLocked: false,
+  questMatch: { left: null, right: null, solved: [] },
+  questOrder: [],
 };
 
 function emptyProgress() {
@@ -50,13 +48,21 @@ function emptyProgress() {
       points: 0,
       days: {},
       lastQuestDate: "",
+      seriesStart: "",
+      badges: {},
     },
   };
 }
 
 function questProgress(progress = loadProgress()) {
   const base = emptyProgress().quest;
-  return { ...base, ...(progress.quest || {}), days: { ...base.days, ...((progress.quest && progress.quest.days) || {}) } };
+  const raw = progress.quest || {};
+  return {
+    ...base,
+    ...raw,
+    days: { ...base.days, ...(raw.days || {}) },
+    badges: { ...base.badges, ...(raw.badges || {}) },
+  };
 }
 
 function loadProgress() {
@@ -305,50 +311,66 @@ function latestReading() {
 }
 
 function renderHome() {
+  ensureSeriesStart();
   const progress = loadProgress();
   const quest = questProgress(progress);
-  const known = allWords().filter((word) => (progress.correct[word.id] || 0) >= 2).length;
-  const weak = wordsForModule("wrong").length;
-  const rec = recommendedLevel(progress);
   const rank = questRankForPoints(quest.points || 0);
-  $("stat-known").textContent = String(known);
-  $("stat-wrong").textContent = String(weak);
-  $("stat-streak").textContent = String(progress.streak || 0);
-  if ($("stat-points")) $("stat-points").textContent = String(quest.points || 0);
-  $("home-recommend").textContent = `闯关等级：${rank.nameZh}。也可以去练「${levelName(rec)}」单词。`;
-  if ($("home-chars")) {
-    $("home-chars").innerHTML = Object.values(QUEST_CHARS)
-      .map(
-        (char) => `
-      <div class="char-card">
-        <div class="avatar" style="background:${char.color}22">${char.emoji}</div>
-        <strong>${char.nameZh}</strong>
-        <span>${char.role}</span>
-      </div>`,
-      )
-      .join("");
-  }
-  const nextDay = nextQuestDay(progress);
-  const questBtn = $("home-quest-continue");
-  if (questBtn) {
-    questBtn.hidden = !nextDay;
-    if (nextDay) {
-      const doneToday = quest.lastQuestDate === todayKey();
-      $("home-quest-title").textContent = doneToday
-        ? `今日已得 10 分 · 还可练第 ${nextDay.id} 天`
-        : `今日闯关：${nextDay.titleZh}`;
-      $("home-quest-meta").textContent = `${questStageForDay(nextDay.id).titleZh} · 完成可得 10 积分`;
-    }
-  }
-  const latest = latestReading();
-  $("home-continue").hidden = !latest;
-  if (latest) {
-    const place = novelPageLabel(latest.novel, latest.record.chapterIndex || 0, latest.record.pageIndex || 0);
-    $("home-continue-title").textContent = latest.record.finished
-      ? `再读一遍：《${latest.novel.titleZh}》`
-      : `接着读：《${latest.novel.titleZh}》`;
-    $("home-continue-meta").textContent = latest.record.finished ? "已经读完，可以从头或从目录再看" : place;
-  }
+  const doneCount = Object.values(quest.days || {}).filter((item) => item && item.done).length;
+  const todayEp = todayEpisode(progress);
+  const status = episodeStatus(todayEp.id, progress);
+  const todayTitle = status.done
+    ? `今日已看完：第 ${todayEp.id} 集 · ${todayEp.titleZh}`
+    : status.playable
+      ? `今日一集：第 ${todayEp.id} 集 · ${todayEp.titleZh}`
+      : status.label;
+  const todayMeta = status.done
+    ? `${todayEp.poster} ${todayEp.placeZh} · 可以再看；下一集明天开放`
+    : status.playable
+      ? `${todayEp.poster} ${todayEp.placeZh} · 点开开演 · 完成后 +10 分`
+      : status.hint;
+  $("theater-hero").innerHTML = `
+    <div class="theater-cast">
+      ${Object.values(QUEST_CHARS)
+        .map((char) => `<div class="avatar" style="background:${char.color}33">${char.emoji}</div>`)
+        .join("")}
+    </div>
+    <h2>一日一剧</h2>
+    <p>皮皮、奥利、桑尼每天演一集。点开今日海报，看对话、连线、排句、写句子。</p>
+    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · ${doneCount}/10 集 · 连续 ${progress.streak || 0} 天</p>
+    <button class="tile wide quest-continue theater-today-btn" type="button" data-open-quest-day="${todayEp.id}" ${status.playable ? "" : "disabled"}>
+      <strong>${todayTitle}</strong>
+      <span>${todayMeta}</span>
+    </button>
+  `;
+  $("theater-map").innerHTML = QUEST_STAGES.map((stage) => {
+    const days = stage.days.map((id) => findQuestDay(id)).filter(Boolean);
+    return `
+      <section class="quest-stage theater-season">
+        <h3>${stage.titleZh}</h3>
+        <div class="poster-row">
+          ${days
+            .map((day) => {
+              const epStatus = episodeStatus(day.id, progress);
+              const cls = [
+                "poster-card",
+                epStatus.done ? "is-done" : "",
+                epStatus.current ? "is-current" : "",
+                !epStatus.playable ? "is-locked" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return `
+                <button class="${cls}" type="button" data-open-quest-day="${day.id}" ${epStatus.playable ? "" : "disabled"} style="--poster:${day.color}">
+                  <span class="poster-art">${day.poster}</span>
+                  <strong>第 ${day.id} 集</strong>
+                  <b>${day.titleZh}</b>
+                  <span>${epStatus.done ? `${day.badge.emoji} 已看完` : epStatus.label}</span>
+                </button>`;
+            })
+            .join("")}
+        </div>
+      </section>`;
+  }).join("");
   show("home");
 }
 
@@ -859,11 +881,16 @@ function renderProgress() {
   $("progress-streak-big").textContent = `${progress.streak || 0} 天`;
   if ($("progress-points")) $("progress-points").textContent = String(quest.points || 0);
   if ($("quest-progress-list")) {
+    const badges = Object.values(quest.badges || {})
+      .map((badge) => `${badge.emoji}${badge.nameZh}`)
+      .join("、");
     $("quest-progress-list").innerHTML = `
       <li>等级：<b>${rank.nameZh}</b></li>
-      <li>闯关积分：${quest.points || 0}</li>
-      <li>已通关天数：${daysDone} / 10</li>
-      <li>最近一次闯关：${quest.lastQuestDate || "还没有"}</li>
+      <li>剧场积分：${quest.points || 0}</li>
+      <li>已看完：${daysDone} / 10 集</li>
+      <li>开播日：${quest.seriesStart || "还没有"}</li>
+      <li>徽章：${badges || "还没有"}</li>
+      <li>最近一集：${quest.lastQuestDate || "还没有"}</li>
     `;
   }
   $("weak-list").innerHTML = weak.length
@@ -1141,338 +1168,201 @@ function addCustomWord() {
   $("add-feedback").textContent = "已经放进单词本了。";
 }
 
+function ensureSeriesStart() {
+  const progress = loadProgress();
+  progress.quest = questProgress(progress);
+  if (!progress.quest.seriesStart) {
+    progress.quest.seriesStart = todayKey();
+    saveProgress(progress);
+  }
+  return progress.quest.seriesStart;
+}
+
 function isQuestDayDone(dayId, progress = loadProgress()) {
   return Boolean(questProgress(progress).days[String(dayId)]?.done);
 }
 
+function isCalendarUnlocked(dayId, progress = loadProgress()) {
+  const start = questProgress(progress).seriesStart || todayKey();
+  return todayKey() >= episodeUnlockDate(dayId, start);
+}
+
 function isQuestDayUnlocked(dayId, progress = loadProgress()) {
   const id = Number(dayId);
+  if (!isCalendarUnlocked(id, progress)) return false;
   if (id <= 1) return true;
   return isQuestDayDone(id - 1, progress);
 }
 
-function nextQuestDay(progress = loadProgress()) {
-  for (const day of QUEST_DAYS) {
-    if (!isQuestDayDone(day.id, progress) && isQuestDayUnlocked(day.id, progress)) return day;
+function todayEpisode(progress = loadProgress()) {
+  const start = questProgress(progress).seriesStart || todayKey();
+  const startDate = new Date(`${start}T12:00:00`);
+  const now = new Date(`${todayKey()}T12:00:00`);
+  const diff = Math.max(0, Math.round((now - startDate) / 86400000));
+  const id = Math.min(QUEST_DAYS.length, diff + 1);
+  return findQuestDay(id) || QUEST_DAYS[0];
+}
+
+function episodeStatus(dayId, progress = loadProgress()) {
+  const id = Number(dayId);
+  const done = isQuestDayDone(id, progress);
+  const calendar = isCalendarUnlocked(id, progress);
+  const prevDone = id <= 1 || isQuestDayDone(id - 1, progress);
+  const today = todayEpisode(progress);
+  const playable = done || (calendar && prevDone);
+  let label = "可开演";
+  let hint = "点开开始这一集";
+  if (done) {
+    label = "已看完";
+    hint = "还可以再看一遍";
+  } else if (!calendar) {
+    const start = questProgress(progress).seriesStart || todayKey();
+    label = "明天再来";
+    hint = `${episodeUnlockDate(id, start).slice(5)} 开放`;
+  } else if (!prevDone) {
+    label = "先看上一集";
+    hint = `请先完成第 ${id - 1} 集`;
+  } else if (today.id === id) {
+    label = "今日新片";
+    hint = "今天就看这一集";
   }
-  return QUEST_DAYS[QUEST_DAYS.length - 1];
+  return {
+    done,
+    playable,
+    current: today.id === id && !done && playable,
+    label,
+    hint,
+  };
 }
 
 function questChar(id) {
   return QUEST_CHARS[id] || QUEST_CHARS.pip;
 }
 
-function avatarHtml(char, sizeClass = "") {
-  return `<div class="avatar ${sizeClass}" style="background:${char.color}33">${char.emoji}</div>`;
+function avatarHtml(char) {
+  return `<div class="avatar" style="background:${char.color}33">${char.emoji}</div>`;
 }
 
-function currentQuestStep() {
-  return state.questDay?.steps[state.questStepIndex] || null;
+function currentScene() {
+  return state.questDay?.scenes[state.questSceneIndex] || null;
 }
 
 function questDayRecord(dayId) {
-  return questProgress().days[String(dayId)] || { done: false, steps: {} };
+  return questProgress().days[String(dayId)] || { done: false };
 }
 
-function markQuestStepDone(dayId, stepIndex) {
+function completeEpisode(dayId) {
   const progress = loadProgress();
   progress.quest = questProgress(progress);
   const key = String(dayId);
-  progress.quest.days[key] = progress.quest.days[key] || { done: false, steps: {} };
-  progress.quest.days[key].steps = progress.quest.days[key].steps || {};
-  progress.quest.days[key].steps[String(stepIndex)] = true;
+  const first = !progress.quest.days[key]?.done;
   const day = findQuestDay(dayId);
-  const allDone = day && day.steps.every((_, index) => progress.quest.days[key].steps[String(index)]);
-  if (allDone && !progress.quest.days[key].done) {
-    progress.quest.days[key].done = true;
-    progress.quest.days[key].completedAt = new Date().toISOString();
+  progress.quest.days[key] = {
+    ...(progress.quest.days[key] || {}),
+    done: true,
+    completedAt: new Date().toISOString(),
+  };
+  if (first) {
     progress.quest.points = (progress.quest.points || 0) + 10;
     progress.quest.lastQuestDate = todayKey();
+    if (day?.badge) progress.quest.badges[key] = day.badge;
+    saveProgress(progress);
     touchStreak();
+  } else {
+    saveProgress(progress);
   }
-  saveProgress(progress);
-  return allDone;
-}
-
-function renderQuestMap() {
-  const progress = loadProgress();
-  const quest = questProgress(progress);
-  const rank = questRankForPoints(quest.points || 0);
-  const doneCount = Object.values(quest.days || {}).filter((item) => item && item.done).length;
-  const next = nextQuestDay(progress);
-  $("quest-map-hero").innerHTML = `
-    <h2>跟伙伴一起闯关</h2>
-    <p>每天一个主题：听、读、对话、写、练。首次通关得 <b>10</b> 积分，连续学习会留下天数。</p>
-    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · 已完成 ${doneCount}/10 天</p>
-    <div class="quest-avatars">
-      ${Object.values(QUEST_CHARS)
-        .map((char) => `<div class="avatar" style="background:${char.color}33" title="${char.nameZh}">${char.emoji}</div>`)
-        .join("")}
-    </div>
-    <p style="margin-top:12px">建议今天：第 ${next.id} 天 · ${next.titleZh}</p>
-  `;
-  $("quest-path").innerHTML = QUEST_STAGES.map((stage) => {
-    const days = stage.days.map((id) => findQuestDay(id)).filter(Boolean);
-    return `
-      <section class="quest-stage">
-        <h3>第 ${stage.id} 板块 · ${stage.titleZh}</h3>
-        <p>${stage.title}</p>
-        <div class="quest-days">
-          ${days
-            .map((day) => {
-              const unlocked = isQuestDayUnlocked(day.id, progress);
-              const done = isQuestDayDone(day.id, progress);
-              const current = next.id === day.id && !done;
-              const guide = questChar(day.guide);
-              const cls = [
-                "quest-day-btn",
-                done ? "is-done" : "",
-                current ? "is-current" : "",
-                !unlocked ? "is-locked" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              const status = !unlocked ? "先完成前一天" : done ? "已通关 · 还可再练" : current ? "今天就练这个" : "已解锁";
-              return `
-                <button class="${cls}" type="button" data-open-quest-day="${day.id}" ${unlocked ? "" : "disabled"}>
-                  <span class="quest-day-num">${done ? "✓" : day.id}</span>
-                  <span>
-                    <strong>${day.titleZh} ${guide.emoji}</strong>
-                    <span>${day.title} · ${status}</span>
-                  </span>
-                </button>`;
-            })
-            .join("")}
-        </div>
-      </section>`;
-  }).join("");
-  show("quest");
+  return first;
 }
 
 function openQuestDay(dayId) {
+  ensureSeriesStart();
   const day = findQuestDay(dayId);
-  if (!day || !isQuestDayUnlocked(day.id)) return;
+  const status = episodeStatus(dayId);
+  if (!day || !status.playable) return;
   state.questDay = day;
-  const guide = questChar(day.guide);
-  const buddy = questChar(day.buddy);
-  const record = questDayRecord(day.id);
-  const stage = questStageForDay(day.id);
-  $("quest-day-title").textContent = `第 ${day.id} 天 · ${day.titleZh}`;
-  $("quest-day-meta").textContent = stage.titleZh;
-  $("quest-day-hero").innerHTML = `
-    <h2>${day.title}</h2>
-    <p>${day.tipZh}</p>
-    <div class="quest-avatars">
-      ${avatarHtml(guide)}
-      ${avatarHtml(buddy)}
-    </div>
-    <p style="margin-top:10px">${guide.nameZh}和${buddy.nameZh}陪你练。完成全部小关可得 10 积分。</p>
-  `;
-  $("quest-step-list").innerHTML = day.steps
-    .map((step, index) => {
-      const done = Boolean(record.steps?.[String(index)]);
-      return `
-        <button class="module-card step-btn" type="button" data-open-quest-step="${index}">
-          <span>
-            <strong>${index + 1}. ${step.titleZh}${done ? " · 完成" : ""}</strong>
-            <small>${step.title} · ${stepTypeLabel(step.type)}</small>
-          </span>
-          <span>${done ? "✓" : "›"}</span>
-        </button>`;
-    })
-    .join("");
-  show("quest-day");
-}
-
-function stepTypeLabel(type) {
-  if (type === "listen") return "听";
-  if (type === "read") return "读";
-  if (type === "chat") return "对话";
-  if (type === "write") return "写";
-  if (type === "practice") return "练";
-  return type;
-}
-
-function startQuestStep(stepIndex) {
-  if (!state.questDay) return;
-  state.questStepIndex = Number(stepIndex);
-  state.questItemIndex = 0;
-  state.questChatLog = [];
-  state.questChatTurn = 0;
-  state.questAnswers = [];
+  state.questSceneIndex = 0;
   state.questLocked = false;
-  const step = currentQuestStep();
-  if (!step) return;
-  if (step.type === "chat") prepareQuestChat();
-  renderQuestPlay();
+  state.questMatch = { left: null, right: null, solved: [] };
+  state.questOrder = [];
+  renderTheaterScene();
 }
 
-function prepareQuestChat() {
-  const step = currentQuestStep();
-  state.questChatLog = [];
-  state.questChatTurn = 0;
-  while (step.turns[state.questChatTurn] && step.turns[state.questChatTurn].who) {
-    const turn = step.turns[state.questChatTurn];
-    state.questChatLog.push(turn);
-    state.questChatTurn += 1;
-    if (step.turns[state.questChatTurn]?.choices) break;
-  }
-}
-
-function renderQuestPlay() {
+function renderTheaterScene() {
   const day = state.questDay;
-  const step = currentQuestStep();
-  if (!day || !step) return;
-  const guide = questChar(day.guide);
-  $("quest-play-title").textContent = `${step.titleZh}`;
-  $("quest-play-progress").textContent = `环节 ${state.questStepIndex + 1}/${day.steps.length}`;
+  const scene = currentScene();
+  if (!day || !scene) return;
+  const who = scene.who ? questChar(scene.who) : questChar("pip");
+  $("quest-play-title").textContent = `第 ${day.id} 集 · ${day.titleZh}`;
+  $("quest-play-progress").textContent = `${state.questSceneIndex + 1} / ${day.scenes.length}`;
   $("quest-guide").innerHTML = `
-    ${avatarHtml(guide)}
-    <div>
-      <p><b>${guide.nameZh}</b> · ${guide.role}</p>
-      <small>${day.titleZh} · ${stepTypeLabel(step.type)}</small>
+    <div class="theater-curtain" style="--poster:${day.color}">
+      <span class="poster-art">${day.poster}</span>
+      <div>
+        <p><b>${day.placeZh}</b></p>
+        <small>${day.tipZh}</small>
+      </div>
+    </div>
+    <div class="quest-guide theater-speaker">
+      ${avatarHtml(who)}
+      <div>
+        <p><b>${who.nameZh}</b> · ${who.role}</p>
+        <small>${sceneTypeLabel(scene.type)}</small>
+      </div>
     </div>
   `;
   $("quest-play-feedback").textContent = "";
   state.questLocked = false;
-
-  if (step.type === "listen" || step.type === "read") renderQuestListenRead(step);
-  else if (step.type === "chat") renderQuestChat(step);
-  else if (step.type === "write") renderQuestWrite(step);
-  else if (step.type === "practice") renderQuestPractice(step);
+  if (scene.type === "say") renderSceneSay(scene);
+  else if (scene.type === "choice") renderSceneChoice(scene);
+  else if (scene.type === "match") renderSceneMatch(scene);
+  else if (scene.type === "order") renderSceneOrder(scene);
+  else if (scene.type === "write") renderSceneWrite(scene);
+  else if (scene.type === "finale") renderSceneFinale(scene);
   show("quest-play");
 }
 
-function renderQuestListenRead(step) {
-  const showZh = step.type === "read";
-  const totalQ = step.questions.length;
-  const qIndex = state.questItemIndex;
-  if (qIndex >= totalQ) {
-    finishQuestStep();
+function sceneTypeLabel(type) {
+  if (type === "say") return "短剧对话";
+  if (type === "choice") return "选一句回答";
+  if (type === "match") return "连线小游戏";
+  if (type === "order") return "排句子";
+  if (type === "write") return "写句子";
+  if (type === "finale") return "剧终徽章";
+  return "小游戏";
+}
+
+function advanceScene() {
+  state.questSceneIndex += 1;
+  if (state.questSceneIndex >= state.questDay.scenes.length) {
+    finishEpisode();
     return;
   }
-  const question = step.questions[qIndex];
+  state.questMatch = { left: null, right: null, solved: [] };
+  state.questOrder = [];
+  renderTheaterScene();
+}
+
+function renderSceneSay(scene) {
   $("quest-play-body").innerHTML = `
-    <div class="quest-lines">
-      ${step.lines
-        .map((line, index) => {
-          const who = line.who === "you" ? { emoji: "🙂", nameZh: "你" } : questChar(line.who);
-          return `
-            <button class="quest-line" type="button" data-quest-speak="${escapeHtml(line.en)}">
-              <span class="who">${who.emoji || ""} ${who.nameZh || ""}</span>
-              <b>${escapeHtml(line.en)}</b>
-              ${showZh || line.who === "you" ? `<small>${escapeHtml(line.zh || "")}</small>` : ""}
-            </button>`;
-        })
-        .join("")}
-    </div>
-    <p class="prompt">${escapeHtml(question.q)} <small>(${qIndex + 1}/${totalQ})</small></p>
-    <div class="options">
-      ${question.options
-        .map(
-          (option, index) =>
-            `<button class="option" type="button" data-quest-choice="${index}">${escapeHtml(option)}</button>`,
-        )
-        .join("")}
+    <div class="chat-bubble theater-line">
+      <b>${escapeHtml(scene.en)}</b>
+      <small>${escapeHtml(scene.zh)}</small>
     </div>
   `;
   $("quest-play-actions").innerHTML = `
-    <button class="ghost" type="button" id="quest-listen-all">听全部</button>
+    <button class="ghost" type="button" id="quest-line-speak">听这一句</button>
+    <button class="primary" type="button" id="quest-line-next">下一句</button>
   `;
-  $("quest-listen-all").onclick = () => {
-    speakLines(step.lines, () => {}, () => {});
-  };
+  $("quest-line-speak").onclick = () => speak(scene.en);
+  $("quest-line-next").onclick = () => advanceScene();
+  speak(scene.en);
 }
 
-function renderQuestChat(step) {
-  const turn = step.turns[state.questChatTurn];
+function renderSceneChoice(scene) {
   $("quest-play-body").innerHTML = `
-    <div class="chat-log">
-      ${state.questChatLog
-        .map((item) => {
-          if (item.me) {
-            return `<div class="chat-bubble me"><b>${escapeHtml(item.en)}</b><small>${escapeHtml(item.zh || "")}</small></div>`;
-          }
-          const who = questChar(item.who);
-          return `<div class="chat-bubble"><span class="who">${who.emoji} ${who.nameZh}</span><b>${escapeHtml(item.en)}</b><small>${escapeHtml(item.zh || "")}</small></div>`;
-        })
-        .join("")}
-    </div>
-    ${
-      turn?.choices
-        ? `<p class="prompt">${escapeHtml(step.turns[state.questChatTurn - 1]?.promptZh || "选一句回答")}</p>
-           <div class="options">
-             ${turn.choices
-               .map(
-                 (choice, index) =>
-                   `<button class="option" type="button" data-quest-chat="${index}"><b>${escapeHtml(choice.en)}</b><br><small>${escapeHtml(choice.zh)}</small></button>`,
-               )
-               .join("")}
-           </div>`
-        : `<div class="quest-celebrate"><div class="big">🎉</div><p>对话完成了！</p></div>`
-    }
-  `;
-  $("quest-play-actions").innerHTML = turn?.choices
-    ? `<button class="ghost" type="button" id="quest-chat-speak">听上一句</button>`
-    : `<button class="primary" type="button" id="quest-chat-done">完成这个环节</button>`;
-  const lastNpc = [...state.questChatLog].reverse().find((item) => item.who);
-  if ($("quest-chat-speak") && lastNpc) {
-    $("quest-chat-speak").onclick = () => speak(lastNpc.en);
-  }
-  if ($("quest-chat-done")) {
-    $("quest-chat-done").onclick = () => finishQuestStep();
-  }
-  if (lastNpc) speak(lastNpc.en);
-}
-
-function renderQuestWrite(step) {
-  const item = step.items[state.questItemIndex];
-  if (!item) {
-    finishQuestStep();
-    return;
-  }
-  $("quest-play-body").innerHTML = `
-    <p class="prompt">听一听，再写出英文 <small>(${state.questItemIndex + 1}/${step.items.length})</small></p>
-    <p class="hint" id="quest-write-hint">${escapeHtml(item.hint || "")}</p>
-    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" spellcheck="false" autocomplete="off" />
-  `;
-  $("quest-play-actions").innerHTML = `
-    <button class="ghost" type="button" id="quest-write-listen">听发音</button>
-    <button class="primary" type="button" id="quest-write-check">检查</button>
-    <button class="sun" type="button" id="quest-write-next" hidden>下一题</button>
-  `;
-  $("quest-write-listen").onclick = () => speak(item.play || item.answer);
-  $("quest-write-check").onclick = () => {
-    if (state.questLocked) return;
-    const typed = $("quest-write-input").value.trim().replace(/\s+/g, " ");
-    const ok = typed.toLowerCase() === item.answer.toLowerCase();
-    state.questLocked = true;
-    state.questAnswers.push({ ok });
-    $("quest-play-feedback").textContent = ok ? "写对了！" : `正确答案：${item.answer}`;
-    $("quest-write-check").hidden = true;
-    $("quest-write-next").hidden = false;
-  };
-  $("quest-write-next").onclick = () => {
-    state.questItemIndex += 1;
-    state.questLocked = false;
-    renderQuestWrite(step);
-  };
-  $("quest-write-input").addEventListener("keydown", (event) => {
-    if (event.key === "Enter") $("quest-write-check").click();
-  });
-  speak(item.play || item.answer);
-}
-
-function renderQuestPractice(step) {
-  const question = step.questions[state.questItemIndex];
-  if (!question) {
-    finishQuestStep();
-    return;
-  }
-  $("quest-play-body").innerHTML = `
-    <p class="prompt">${escapeHtml(question.ask)} <small>(${state.questItemIndex + 1}/${step.questions.length})</small></p>
+    <p class="prompt">${escapeHtml(scene.promptZh)}</p>
     <div class="options">
-      ${question.options
+      ${scene.options
         .map(
           (option, index) =>
             `<button class="option" type="button" data-quest-choice="${index}">${escapeHtml(option)}</button>`,
@@ -1485,90 +1375,199 @@ function renderQuestPractice(step) {
 
 function handleQuestChoice(choiceIndex) {
   if (state.questLocked) return;
-  const step = currentQuestStep();
-  if (!step) return;
-  const list = step.questions;
-  const question = list[state.questItemIndex];
-  if (!question) return;
-  const ok = Number(choiceIndex) === question.answer;
+  const scene = currentScene();
+  if (!scene || scene.type !== "choice") return;
+  const ok = Number(choiceIndex) === scene.answer;
   state.questLocked = true;
-  state.questAnswers.push({ ok });
   const buttons = [...$("quest-play-body").querySelectorAll("[data-quest-choice]")];
   buttons.forEach((btn) => {
     const index = Number(btn.dataset.questChoice);
-    if (index === question.answer) btn.classList.add("is-right");
+    if (index === scene.answer) btn.classList.add("is-right");
     if (index === Number(choiceIndex) && !ok) btn.classList.add("is-wrong");
   });
-  $("quest-play-feedback").textContent = ok ? "答对了！" : `正确答案：${question.options[question.answer]}`;
+  $("quest-play-feedback").textContent = ok ? "说得对！继续往下演。" : `更合适的是：${scene.options[scene.answer]}`;
   setTimeout(() => {
-    state.questItemIndex += 1;
     state.questLocked = false;
-    if (state.questItemIndex >= list.length) finishQuestStep();
-    else if (step.type === "practice") renderQuestPractice(step);
-    else renderQuestListenRead(step);
-  }, 750);
-}
-
-function handleQuestChatChoice(choiceIndex) {
-  if (state.questLocked) return;
-  const step = currentQuestStep();
-  const turn = step?.turns[state.questChatTurn];
-  if (!turn?.choices) return;
-  const choice = turn.choices[Number(choiceIndex)];
-  if (!choice) return;
-  state.questLocked = true;
-  const buttons = [...$("quest-play-body").querySelectorAll("[data-quest-chat]")];
-  buttons.forEach((btn, index) => {
-    if (turn.choices[index]?.ok) btn.classList.add("is-right");
-    if (index === Number(choiceIndex) && !choice.ok) btn.classList.add("is-wrong");
-  });
-  $("quest-play-feedback").textContent = choice.ok ? "说得对！" : "再想想，选更合适的一句。";
-  if (!choice.ok) {
-    setTimeout(() => {
-      state.questLocked = false;
+    if (ok) advanceScene();
+    else {
       $("quest-play-feedback").textContent = "";
       buttons.forEach((btn) => btn.classList.remove("is-right", "is-wrong"));
-    }, 700);
-    return;
-  }
-  state.questChatLog.push({ me: true, en: choice.en, zh: choice.zh });
-  state.questChatTurn += 1;
-  while (step.turns[state.questChatTurn] && step.turns[state.questChatTurn].who) {
-    state.questChatLog.push(step.turns[state.questChatTurn]);
-    state.questChatTurn += 1;
-    if (step.turns[state.questChatTurn]?.choices) break;
-  }
-  setTimeout(() => {
-    state.questLocked = false;
-    renderQuestChat(step);
-  }, 500);
+    }
+  }, ok ? 700 : 900);
 }
 
-function finishQuestStep() {
+function renderSceneMatch(scene) {
+  state.questMatch = { left: null, right: null, solved: state.questMatch.solved || [] };
+  const rights = shuffle(scene.pairs.map((pair, index) => ({ text: pair.right, index })));
+  $("quest-play-body").innerHTML = `
+    <p class="prompt">${escapeHtml(scene.promptZh)}</p>
+    <p class="hint">先点左边，再点右边配对。</p>
+    <div class="match-board">
+      <div class="match-col">
+        ${scene.pairs
+          .map(
+            (pair, index) =>
+              `<button class="match-item ${state.questMatch.solved.includes(index) ? "is-done" : ""}" type="button" data-match-left="${index}" ${state.questMatch.solved.includes(index) ? "disabled" : ""}>${escapeHtml(pair.left)}</button>`,
+          )
+          .join("")}
+      </div>
+      <div class="match-col">
+        ${rights
+          .map(
+            (item) =>
+              `<button class="match-item ${state.questMatch.solved.includes(item.index) ? "is-done" : ""}" type="button" data-match-right="${item.index}" ${state.questMatch.solved.includes(item.index) ? "disabled" : ""}>${escapeHtml(item.text)}</button>`,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+  $("quest-play-actions").innerHTML = "";
+}
+
+function handleMatchPick(side, index) {
+  if (state.questLocked) return;
+  const scene = currentScene();
+  if (!scene || scene.type !== "match") return;
+  const value = Number(index);
+  if (state.questMatch.solved.includes(value)) return;
+  if (side === "left") {
+    state.questMatch.left = value;
+  } else {
+    state.questMatch.right = value;
+  }
+  [...$("quest-play-body").querySelectorAll(".match-item")].forEach((btn) => {
+    btn.classList.toggle("is-picked", Number(btn.dataset.matchLeft) === state.questMatch.left || Number(btn.dataset.matchRight) === state.questMatch.right);
+  });
+  if (state.questMatch.left == null || state.questMatch.right == null) return;
+  state.questLocked = true;
+  const ok = state.questMatch.left === state.questMatch.right;
+  if (ok) {
+    state.questMatch.solved.push(state.questMatch.left);
+    $("quest-play-feedback").textContent = "配对成功！";
+  } else {
+    $("quest-play-feedback").textContent = "不对，再试一次。";
+  }
+  setTimeout(() => {
+    state.questMatch.left = null;
+    state.questMatch.right = null;
+    state.questLocked = false;
+    if (state.questMatch.solved.length >= scene.pairs.length) {
+      advanceScene();
+      return;
+    }
+    renderSceneMatch(scene);
+  }, ok ? 450 : 700);
+}
+
+function renderSceneOrder(scene) {
+  state.questOrder = state.questOrder || [];
+  const pool = shuffle(scene.words.slice());
+  $("quest-play-body").innerHTML = `
+    <p class="prompt">${escapeHtml(scene.promptZh)}</p>
+    <div class="order-built" id="order-built">${state.questOrder.length ? escapeHtml(state.questOrder.join(" ")) : "点下面的词，按顺序排成句子"}</div>
+    <div class="order-pool" id="order-pool">
+      ${pool
+        .map((word, index) => `<button class="chip order-chip" type="button" data-order-word="${escapeHtml(word)}" data-order-i="${index}">${escapeHtml(word)}</button>`)
+        .join("")}
+    </div>
+  `;
+  $("quest-play-actions").innerHTML = `
+    <button class="ghost" type="button" id="order-reset">清空</button>
+    <button class="primary" type="button" id="order-check">检查</button>
+  `;
+  $("order-reset").onclick = () => {
+    state.questOrder = [];
+    renderSceneOrder(scene);
+  };
+  $("order-check").onclick = () => {
+    if (state.questLocked) return;
+    const built = state.questOrder.join(" ");
+    const ok = built.toLowerCase() === scene.answer.toLowerCase();
+    state.questLocked = true;
+    $("quest-play-feedback").textContent = ok ? "句子排对了！" : `正确答案：${scene.answer}`;
+    setTimeout(() => {
+      state.questLocked = false;
+      if (ok) {
+        state.questOrder = [];
+        advanceScene();
+      }
+    }, ok ? 700 : 1100);
+  };
+}
+
+function handleOrderWord(word, button) {
+  if (state.questLocked || !word) return;
+  state.questOrder.push(word);
+  if (button) button.disabled = true;
+  const built = $("order-built");
+  if (built) built.textContent = state.questOrder.join(" ");
+}
+
+function renderSceneWrite(scene) {
+  $("quest-play-body").innerHTML = `
+    <p class="prompt">${escapeHtml(scene.promptZh)}</p>
+    <p class="hint">提示：${escapeHtml(scene.hint)}</p>
+    <input class="spell-input" id="quest-write-input" type="text" autocapitalize="none" spellcheck="false" autocomplete="off" />
+  `;
+  $("quest-play-actions").innerHTML = `
+    <button class="ghost" type="button" id="quest-write-listen">听一听</button>
+    <button class="primary" type="button" id="quest-write-check">检查</button>
+  `;
+  $("quest-write-listen").onclick = () => speak(scene.answer);
+  $("quest-write-check").onclick = () => {
+    if (state.questLocked) return;
+    const typed = $("quest-write-input").value.trim().replace(/\s+/g, " ");
+    const ok = typed.toLowerCase() === scene.answer.toLowerCase();
+    state.questLocked = true;
+    $("quest-play-feedback").textContent = ok ? "写对了！" : `正确答案：${scene.answer}`;
+    setTimeout(() => {
+      state.questLocked = false;
+      if (ok) advanceScene();
+    }, ok ? 700 : 1100);
+  };
+  $("quest-write-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") $("quest-write-check").click();
+  });
+  speak(scene.answer);
+}
+
+function renderSceneFinale(scene) {
+  const day = state.questDay;
+  $("quest-play-body").innerHTML = `
+    <div class="quest-celebrate">
+      <div class="big">${day.badge.emoji}</div>
+      <h2>${escapeHtml(scene.textZh)}</h2>
+      <p>${day.badge.nameZh}</p>
+    </div>
+  `;
+  $("quest-play-actions").innerHTML = `
+    <button class="primary" type="button" id="quest-finale-done">收下徽章</button>
+  `;
+  $("quest-finale-done").onclick = () => finishEpisode();
+}
+
+function finishEpisode() {
   const day = state.questDay;
   if (!day) return;
-  const firstClear = !questDayRecord(day.id).done;
-  const dayComplete = markQuestStepDone(day.id, state.questStepIndex);
-  const guide = questChar(day.guide);
-  if (dayComplete && firstClear) {
-    const rank = questRankForPoints(questProgress().points || 0);
-    $("quest-play-body").innerHTML = `
-      <div class="quest-celebrate">
-        <div class="big">${guide.emoji}</div>
-        <h2>第 ${day.id} 天通关！</h2>
-        <p>+10 积分</p>
-        <p>现在等级：${rank.nameZh} · ${questProgress().points} 分</p>
-      </div>
-    `;
-    $("quest-play-feedback").textContent = "明天还可以继续下一天。也可以再练今天。";
-    $("quest-play-actions").innerHTML = `
-      <button class="primary" type="button" data-go="quest">回到地图</button>
-      <button class="sun" type="button" data-open-quest-day="${day.id}">再看今天</button>
-    `;
-    show("quest-play");
-    return;
-  }
-  openQuestDay(day.id);
+  const first = completeEpisode(day.id);
+  const quest = questProgress();
+  const rank = questRankForPoints(quest.points || 0);
+  $("quest-guide").innerHTML = "";
+  $("quest-play-body").innerHTML = `
+    <div class="quest-celebrate">
+      <div class="big">${day.badge.emoji}</div>
+      <h2>第 ${day.id} 集演完了！</h2>
+      <p>${first ? "+10 积分" : "复习完成"}</p>
+      <p>徽章：${day.badge.nameZh}</p>
+      <p>现在等级：${rank.nameZh} · ${quest.points || 0} 分</p>
+    </div>
+  `;
+  $("quest-play-feedback").textContent = first ? "明天地图上会开放下一集。" : "可以回地图看别的集，或再看一遍。";
+  $("quest-play-actions").innerHTML = `
+    <button class="primary" type="button" data-go="home">回到剧场地图</button>
+    <button class="sun" type="button" data-open-quest-day="${day.id}">再看一集</button>
+  `;
+  show("quest-play");
 }
 
 function bindEvents() {
@@ -1604,19 +1603,13 @@ function bindEvents() {
       if (view === "progress") renderProgress();
       if (view === "help") show("help");
       if (view === "novels") renderNovels();
-      if (view === "quest") renderQuestMap();
-      if (view === "quest-day" && state.questDay) openQuestDay(state.questDay.id);
+      if (view === "more") show("more");
+      if (view === "quest") renderHome();
     }
 
     const openQuestDayBtn = event.target.closest("[data-open-quest-day]");
-    if (openQuestDayBtn) {
+    if (openQuestDayBtn && !openQuestDayBtn.disabled) {
       openQuestDay(openQuestDayBtn.dataset.openQuestDay);
-      return;
-    }
-
-    const openQuestStep = event.target.closest("[data-open-quest-step]");
-    if (openQuestStep) {
-      startQuestStep(openQuestStep.dataset.openQuestStep);
       return;
     }
 
@@ -1626,9 +1619,20 @@ function bindEvents() {
       return;
     }
 
-    const questChat = event.target.closest("[data-quest-chat]");
-    if (questChat && state.view === "quest-play") {
-      handleQuestChatChoice(questChat.dataset.questChat);
+    const matchLeft = event.target.closest("[data-match-left]");
+    if (matchLeft && state.view === "quest-play") {
+      handleMatchPick("left", matchLeft.dataset.matchLeft);
+      return;
+    }
+    const matchRight = event.target.closest("[data-match-right]");
+    if (matchRight && state.view === "quest-play") {
+      handleMatchPick("right", matchRight.dataset.matchRight);
+      return;
+    }
+
+    const orderWord = event.target.closest("[data-order-word]");
+    if (orderWord && state.view === "quest-play") {
+      handleOrderWord(orderWord.dataset.orderWord, orderWord);
       return;
     }
 
@@ -1911,31 +1915,21 @@ function bindEvents() {
     renderLibrary(state.libraryKind);
   });
 
-  $("home-continue").addEventListener("click", () => {
-    const latest = latestReading();
-    if (!latest) {
-      renderNovels();
-      return;
-    }
-    openNovelAt(latest.id, undefined, undefined, Boolean(latest.record.finished));
-  });
-
-  if ($("home-quest-continue")) {
-    $("home-quest-continue").addEventListener("click", () => {
-      const day = nextQuestDay();
-      if (!day) {
-        renderQuestMap();
+  if ($("home-continue")) {
+    $("home-continue").addEventListener("click", () => {
+      const latest = latestReading();
+      if (!latest) {
+        renderNovels();
         return;
       }
-      openQuestDay(day.id);
+      openNovelAt(latest.id, undefined, undefined, Boolean(latest.record.finished));
     });
   }
 
   if ($("quest-play-back")) {
     $("quest-play-back").addEventListener("click", () => {
       stopSpeak();
-      if (state.questDay) openQuestDay(state.questDay.id);
-      else renderQuestMap();
+      renderHome();
     });
   }
 
