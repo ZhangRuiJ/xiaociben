@@ -50,6 +50,7 @@ function emptyProgress() {
       lastQuestDate: "",
       seriesStart: "",
       badges: {},
+      stars: 0,
     },
   };
 }
@@ -331,12 +332,12 @@ function renderHome() {
   $("theater-hero").innerHTML = `
     <div class="theater-cast">
       ${Object.values(QUEST_CHARS)
-        .map((char) => `<div class="avatar" style="background:${char.color}33">${char.emoji}</div>`)
+        .map((char) => charFigureHtml(char.id, "idle", "md"))
         .join("")}
     </div>
     <h2>一日一剧</h2>
     <p>皮皮、奥利、桑尼每天演一集。点开今日海报，看对话、连线、排句、写句子。</p>
-    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · ${doneCount}/10 集 · 连续 ${progress.streak || 0} 天</p>
+    <p class="rank-line">${rank.nameZh} · ${quest.points || 0} 分 · 🍬${quest.stars || 0} · ${doneCount}/10 集 · 连续 ${progress.streak || 0} 天</p>
     <button class="tile wide quest-continue theater-today-btn" type="button" data-open-quest-day="${todayEp.id}" ${status.playable ? "" : "disabled"}>
       <strong>${todayTitle}</strong>
       <span>${todayMeta}</span>
@@ -887,6 +888,7 @@ function renderProgress() {
     $("quest-progress-list").innerHTML = `
       <li>等级：<b>${rank.nameZh}</b></li>
       <li>剧场积分：${quest.points || 0}</li>
+      <li>星星糖：🍬 ${quest.stars || 0}</li>
       <li>已看完：${daysDone} / 10 集</li>
       <li>开播日：${quest.seriesStart || "还没有"}</li>
       <li>徽章：${badges || "还没有"}</li>
@@ -1239,8 +1241,50 @@ function questChar(id) {
   return QUEST_CHARS[id] || QUEST_CHARS.pip;
 }
 
-function avatarHtml(char) {
-  return `<div class="avatar" style="background:${char.color}33">${char.emoji}</div>`;
+function avatarHtml(char, mood = "idle", size = "md") {
+  const id = typeof char === "string" ? char : char.id;
+  return charFigureHtml(id, mood, size);
+}
+
+function setSpeakerMood(mood) {
+  const figure = document.querySelector("#quest-guide .char-figure");
+  if (!figure) return;
+  figure.classList.remove("is-idle", "is-talk", "is-happy", "is-think", "is-celebrate", "is-sad");
+  figure.classList.add(`is-${mood || "idle"}`);
+}
+
+function addQuestStars(amount = 1) {
+  const progress = loadProgress();
+  progress.quest = questProgress(progress);
+  progress.quest.stars = (progress.quest.stars || 0) + amount;
+  saveProgress(progress);
+  return progress.quest.stars;
+}
+
+function showQuestReward(whoId, reasonZh) {
+  const who = questChar(whoId || state.questDay?.scenes?.[state.questSceneIndex]?.who || "pip");
+  const line = REWARD_LINES[Math.floor(Math.random() * REWARD_LINES.length)];
+  const total = addQuestStars(1);
+  const pop = $("reward-pop");
+  if (!pop) return;
+  $("reward-pop-figure").innerHTML = charFigureHtml(who.id, "celebrate", "lg");
+  $("reward-pop-icon").textContent = line.icon;
+  $("reward-pop-text").textContent = reasonZh || line.text;
+  $("reward-pop-sub").textContent = `${who.nameZh}：真厉害！星星糖 × ${total}`;
+  pop.hidden = false;
+  pop.classList.remove("is-show");
+  void pop.offsetWidth;
+  pop.classList.add("is-show");
+  clearTimeout(showQuestReward._timer);
+  showQuestReward._timer = setTimeout(() => {
+    pop.classList.remove("is-show");
+    pop.hidden = true;
+  }, 1100);
+}
+
+function celebrateCorrect(whoId, reasonZh) {
+  setSpeakerMood("celebrate");
+  showQuestReward(whoId, reasonZh);
 }
 
 function currentScene() {
@@ -1292,6 +1336,7 @@ function renderTheaterScene() {
   const scene = currentScene();
   if (!day || !scene) return;
   const who = scene.who ? questChar(scene.who) : questChar("pip");
+  const mood = scene.type === "say" ? "talk" : scene.type === "finale" ? "celebrate" : scene.type === "write" ? "think" : "idle";
   $("quest-play-title").textContent = `第 ${day.id} 集 · ${day.titleZh}`;
   $("quest-play-progress").textContent = `${state.questSceneIndex + 1} / ${day.scenes.length}`;
   $("quest-guide").innerHTML = `
@@ -1303,10 +1348,11 @@ function renderTheaterScene() {
       </div>
     </div>
     <div class="quest-guide theater-speaker">
-      ${avatarHtml(who)}
+      ${avatarHtml(who, mood, "lg")}
       <div>
         <p><b>${who.nameZh}</b> · ${who.role}</p>
         <small>${sceneTypeLabel(scene.type)}</small>
+        <p class="star-pill">🍬 星星糖 ${questProgress().stars || 0}</p>
       </div>
     </div>
   `;
@@ -1386,14 +1432,17 @@ function handleQuestChoice(choiceIndex) {
     if (index === Number(choiceIndex) && !ok) btn.classList.add("is-wrong");
   });
   $("quest-play-feedback").textContent = ok ? "说得对！继续往下演。" : `更合适的是：${scene.options[scene.answer]}`;
+  if (ok) celebrateCorrect(scene.who, "说得对！+1 星星糖");
+  else setSpeakerMood("sad");
   setTimeout(() => {
     state.questLocked = false;
     if (ok) advanceScene();
     else {
+      setSpeakerMood("think");
       $("quest-play-feedback").textContent = "";
       buttons.forEach((btn) => btn.classList.remove("is-right", "is-wrong"));
     }
-  }, ok ? 700 : 900);
+  }, ok ? 1150 : 900);
 }
 
 function renderSceneMatch(scene) {
@@ -1444,19 +1493,22 @@ function handleMatchPick(side, index) {
   if (ok) {
     state.questMatch.solved.push(state.questMatch.left);
     $("quest-play-feedback").textContent = "配对成功！";
+    celebrateCorrect(scene.who, "配对成功！+1 星星糖");
   } else {
     $("quest-play-feedback").textContent = "不对，再试一次。";
+    setSpeakerMood("sad");
   }
   setTimeout(() => {
     state.questMatch.left = null;
     state.questMatch.right = null;
     state.questLocked = false;
-    if (state.questMatch.solved.length >= scene.pairs.length) {
+    if (ok && state.questMatch.solved.length >= scene.pairs.length) {
       advanceScene();
       return;
     }
+    if (!ok) setSpeakerMood("think");
     renderSceneMatch(scene);
-  }, ok ? 450 : 700);
+  }, ok ? (state.questMatch.solved.length >= scene.pairs.length ? 1000 : 550) : 700);
 }
 
 function renderSceneOrder(scene) {
@@ -1485,13 +1537,15 @@ function renderSceneOrder(scene) {
     const ok = built.toLowerCase() === scene.answer.toLowerCase();
     state.questLocked = true;
     $("quest-play-feedback").textContent = ok ? "句子排对了！" : `正确答案：${scene.answer}`;
+    if (ok) celebrateCorrect(scene.who, "句子排对了！+1 星星糖");
+    else setSpeakerMood("sad");
     setTimeout(() => {
       state.questLocked = false;
       if (ok) {
         state.questOrder = [];
         advanceScene();
-      }
-    }, ok ? 700 : 1100);
+      } else setSpeakerMood("think");
+    }, ok ? 1150 : 1100);
   };
 }
 
@@ -1520,10 +1574,13 @@ function renderSceneWrite(scene) {
     const ok = typed.toLowerCase() === scene.answer.toLowerCase();
     state.questLocked = true;
     $("quest-play-feedback").textContent = ok ? "写对了！" : `正确答案：${scene.answer}`;
+    if (ok) celebrateCorrect(scene.who, "写对了！+1 星星糖");
+    else setSpeakerMood("sad");
     setTimeout(() => {
       state.questLocked = false;
       if (ok) advanceScene();
-    }, ok ? 700 : 1100);
+      else setSpeakerMood("think");
+    }, ok ? 1150 : 1100);
   };
   $("quest-write-input").addEventListener("keydown", (event) => {
     if (event.key === "Enter") $("quest-write-check").click();
@@ -1533,8 +1590,14 @@ function renderSceneWrite(scene) {
 
 function renderSceneFinale(scene) {
   const day = state.questDay;
+  setSpeakerMood("celebrate");
   $("quest-play-body").innerHTML = `
     <div class="quest-celebrate">
+      <div class="finale-cast">
+        ${charFigureHtml("pip", "celebrate", "md")}
+        ${charFigureHtml("ollie", "celebrate", "md")}
+        ${charFigureHtml("sunny", "celebrate", "md")}
+      </div>
       <div class="big">${day.badge.emoji}</div>
       <h2>${escapeHtml(scene.textZh)}</h2>
       <p>${day.badge.nameZh}</p>

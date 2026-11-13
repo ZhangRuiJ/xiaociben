@@ -9,7 +9,7 @@
     <title>小词本 · 美国小学三年级</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="stylesheet" href="styles.css?v=12" />
   </head>
   <body>
     <div class="app">
@@ -267,7 +267,7 @@
             <p>9. 「长篇阅读」里一共六本书：魔法学校、《绿野仙踪》《爱丽丝漫游奇境》的三年级改写，还有校园谜案、棒球和港口救援三本新故事。点一个英文单词，就能看意思、音标和发音，也可以加进单词本。</p>
             <p>10. 长篇会记住你读到第几章第几页。下次打开，点「接着读」就行。电脑上打开单词卡片后，按 A 也能加入单词本。</p>
             <p>11. 首页是「一日一剧」地图。皮皮、奥利、桑尼每天演一集短剧。剧里会插入选答、连线、排句子、写句子。从你开始的那天起，每天开放一集；先完成上一集，才能看新的。</p>
-            <p>12. 单词、故事、长篇还在右上角「更多」里。</p>
+            <p>12. 答对小游戏会得到「星星糖」，伙伴还会做出开心动作。单词、故事、长篇在右上角「更多」里。</p>
           </div>
         </section>
 
@@ -436,6 +436,16 @@
       </main>
     </div>
 
+    <div id="reward-pop" class="reward-pop" hidden>
+      <div class="reward-burst" aria-hidden="true"></div>
+      <div class="reward-card">
+        <div id="reward-pop-figure"></div>
+        <p class="reward-icon" id="reward-pop-icon">🍬</p>
+        <p class="reward-text" id="reward-pop-text">+1 星星糖</p>
+        <p class="reward-sub" id="reward-pop-sub"></p>
+      </div>
+    </div>
+
     <div id="word-sheet" class="word-sheet" hidden>
       <button class="word-sheet-close" id="word-sheet-close" type="button">关闭</button>
       <p class="word-sheet-en" id="word-sheet-en"></p>
@@ -450,14 +460,15 @@
       </div>
     </div>
 
-    <script src="words.js?v=11"></script>
-    <script src="grade3-vocab.js?v=11"></script>
-    <script src="library.js?v=11"></script>
-    <script src="novels.js?v=11"></script>
-    <script src="novels-extra.js?v=11"></script>
-    <script src="glossary.js?v=11"></script>
-    <script src="quest.js?v=11"></script>
-    <script src="app.js?v=11"></script>
+    <script src="words.js?v=12"></script>
+    <script src="grade3-vocab.js?v=12"></script>
+    <script src="library.js?v=12"></script>
+    <script src="novels.js?v=12"></script>
+    <script src="novels-extra.js?v=12"></script>
+    <script src="glossary.js?v=12"></script>
+    <script src="quest.js?v=12"></script>
+    <script src="characters.js?v=12"></script>
+    <script src="app.js?v=12"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
